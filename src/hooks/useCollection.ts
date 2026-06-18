@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { collection, onSnapshot, query, orderBy, addDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, addDoc, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db, isFirebaseConfigured } from "@/lib/firebase";
 
 export function useCollection(collectionName: string, initialData: any[] = []) {
@@ -83,5 +83,51 @@ export function useCollection(collectionName: string, initialData: any[] = []) {
     }
   };
 
-  return { data, loading, addDocument };
+  const updateDocument = async (id: string, updatedFields: any) => {
+    if (isFirebaseConfigured && db) {
+      try {
+        const docRef = doc(db, collectionName, id);
+        await updateDoc(docRef, updatedFields);
+      } catch (err) {
+        console.error("Erro ao atualizar documento no Firestore:", err);
+        updateLocally();
+      }
+    } else {
+      updateLocally();
+    }
+
+    function updateLocally() {
+      if (typeof window !== "undefined") {
+        const updatedData = data.map(item => 
+          item.id === id ? { ...item, ...updatedFields } : item
+        );
+        setData(updatedData);
+        localStorage.setItem(`sanga_${collectionName}`, JSON.stringify(updatedData));
+      }
+    }
+  };
+
+  const deleteDocument = async (id: string) => {
+    if (isFirebaseConfigured && db) {
+      try {
+        const docRef = doc(db, collectionName, id);
+        await deleteDoc(docRef);
+      } catch (err) {
+        console.error("Erro ao deletar documento no Firestore:", err);
+        deleteLocally();
+      }
+    } else {
+      deleteLocally();
+    }
+
+    function deleteLocally() {
+      if (typeof window !== "undefined") {
+        const updatedData = data.filter(item => item.id !== id);
+        setData(updatedData);
+        localStorage.setItem(`sanga_${collectionName}`, JSON.stringify(updatedData));
+      }
+    }
+  };
+
+  return { data, loading, addDocument, updateDocument, deleteDocument };
 }

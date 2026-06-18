@@ -20,7 +20,7 @@ export default function AppLayout({
 
         {/* Área de conteúdo rolável */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6">
-          <div className="mx-auto max-w-5xl h-full">
+          <div className="mx-auto max-w-5xl min-h-full">
             {children}
           </div>
         </main>

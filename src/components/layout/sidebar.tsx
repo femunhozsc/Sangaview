@@ -13,7 +13,9 @@ import {
   Moon,
   Sun,
   X,
-  BarChart3
+  BarChart3,
+  Bell,
+  ShoppingCart
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +26,8 @@ const menuItems = [
   { name: "Manutenções", href: "/manutencoes", icon: Wrench },
   { name: "Financeiro", href: "/financeiro", icon: CircleDollarSign },
   { name: "Relatórios", href: "/relatorios", icon: BarChart3 },
+  { name: "Lembretes", href: "/lembretes", icon: Bell },
+  { name: "Lista de Compras", href: "/lista-compras", icon: ShoppingCart },
 ];
 
 interface SidebarProps {
@@ -44,7 +48,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", bounce: 0, duration: 0.3 }}
-            className="fixed inset-y-0 right-0 z-50 flex w-72 flex-col bg-card shadow-2xl md:relative md:flex md:w-64"
+            className="fixed inset-y-0 right-0 z-50 flex w-72 flex-col bg-card shadow-2xl md:relative md:inset-y-auto md:right-auto md:h-full md:w-64 md:shadow-none md:border-l md:border-border"
           >
             <div className="flex items-center justify-between border-b border-border p-4 h-16">
               <span className="text-lg font-bold text-foreground">Menu</span>

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, X, Camera, Save, Truck, MapPin } from "lucide-react";
+import { Plus, X, Camera, Save, Truck, MapPin, Edit2, Trash2 } from "lucide-react";
 import { useCollection } from "@/hooks/useCollection";
 
 type ServiceFormData = {
@@ -28,16 +28,48 @@ const initialMockServices = [
 
 export default function ServicosPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const { data: servicos, loading, addDocument } = useCollection("servicos", initialMockServices);
+  const [editingService, setEditingService] = useState<any | null>(null);
+  const { data: servicos, loading, addDocument, updateDocument, deleteDocument } = useCollection("servicos", initialMockServices);
   const { register, watch, handleSubmit, reset } = useForm<ServiceFormData>();
 
   const kmInicial = watch("kmInicial", 0);
   const kmFinal = watch("kmFinal", 0);
   const kmPercorrido = (Number(kmFinal) - Number(kmInicial) > 0) ? (Number(kmFinal) - Number(kmInicial)) : 0;
 
+  const handleEdit = (servico: any) => {
+    setEditingService(servico);
+    reset({
+      cliente: servico.cliente,
+      telefone: servico.telefone || "",
+      data: servico.data || "",
+      hora: servico.hora || "",
+      origem: servico.origem || "",
+      destino: servico.destino || "",
+      veiculo: servico.veiculo || "",
+      placa: servico.placa || "",
+      kmInicial: Number(servico.kmInicial) || 0,
+      kmFinal: Number(servico.kmFinal) || 0,
+      valor: Number(servico.valor) || 0,
+      descricao: servico.descricao || ""
+    });
+    setIsFormOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm("Tem certeza que deseja excluir este serviço?")) {
+      try {
+        await deleteDocument(id);
+        alert("Serviço excluído com sucesso!");
+      } catch (error) {
+        console.error("Erro ao excluir serviço:", error);
+        alert("Erro ao excluir o serviço.");
+      }
+    }
+  };
+
   const onSubmit = async (data: ServiceFormData) => {
     try {
-      await addDocument({
+      const payload = {
         cliente: data.cliente,
         telefone: data.telefone || "",
         data: data.data || new Date().toISOString().split("T")[0],
@@ -51,11 +83,19 @@ export default function ServicosPage() {
         kmPercorrido: kmPercorrido,
         valor: Number(data.valor) || 0,
         descricao: data.descricao || ""
-      });
+      };
+
+      if (editingService) {
+        await updateDocument(editingService.id, payload);
+        alert("Serviço atualizado com sucesso!");
+      } else {
+        await addDocument(payload);
+        alert("Serviço salvo com sucesso!");
+      }
       
       setIsFormOpen(false);
+      setEditingService(null);
       reset();
-      alert("Serviço salvo com sucesso!");
     } catch (error) {
       console.error("Erro ao salvar serviço:", error);
       alert("Erro ao salvar o serviço.");
@@ -70,7 +110,24 @@ export default function ServicosPage() {
           <p className="text-sm text-muted-foreground">Gerencie os serviços de guincho.</p>
         </div>
         <button 
-          onClick={() => setIsFormOpen(true)}
+          onClick={() => {
+            setEditingService(null);
+            reset({
+              cliente: "",
+              telefone: "",
+              data: new Date().toISOString().split("T")[0],
+              hora: new Date().toTimeString().split(" ")[0].slice(0, 5),
+              origem: "",
+              destino: "",
+              veiculo: "",
+              placa: "",
+              kmInicial: 0,
+              kmFinal: 0,
+              valor: 0,
+              descricao: ""
+            });
+            setIsFormOpen(true);
+          }}
           className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90 transition-opacity"
         >
           <Plus className="h-4 w-4" />
@@ -105,10 +162,26 @@ export default function ServicosPage() {
                   </div>
                 </div>
               </div>
-              <div className="text-left sm:text-right">
+              <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2">
                 <p className="text-xl font-bold text-green-500">
                   R$ {Number(servico.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
+                <div className="flex items-center gap-1">
+                  <button 
+                    onClick={() => handleEdit(servico)}
+                    className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                    title="Editar Serviço"
+                  >
+                    <Edit2 className="h-4.5 w-4.5" />
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(servico.id)}
+                    className="rounded-lg p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                    title="Excluir Serviço"
+                  >
+                    <Trash2 className="h-4.5 w-4.5" />
+                  </button>
+                </div>
               </div>
             </div>
           ))}

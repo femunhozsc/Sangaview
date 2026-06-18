@@ -13,7 +13,9 @@ import {
   CircleDollarSign, 
   MapPin,
   ChevronRight,
-  ClipboardList
+  Edit2,
+  Trash2,
+  X
 } from "lucide-react";
 import { useCollection } from "@/hooks/useCollection";
 
@@ -49,15 +51,89 @@ const monthNames: { [key: string]: string } = {
 };
 
 export default function RelatoriosPage() {
-  const { data: servicos, loading: loadingS } = useCollection("servicos", initialMockServices);
-  const { data: abastecimentos, loading: loadingA } = useCollection("abastecimentos", initialMockFuel);
-  const { data: manutencoes, loading: loadingM } = useCollection("manutencoes", initialMockMaintenance);
+  const { data: servicos, loading: loadingS, updateDocument: updateS, deleteDocument: deleteS } = useCollection("servicos", initialMockServices);
+  const { data: abastecimentos, loading: loadingA, updateDocument: updateA, deleteDocument: deleteA } = useCollection("abastecimentos", initialMockFuel);
+  const { data: manutencoes, loading: loadingM, updateDocument: updateM, deleteDocument: deleteM } = useCollection("manutencoes", initialMockMaintenance);
 
   const loading = loadingS || loadingA || loadingM;
 
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"servicos" | "abastecimentos" | "manutencoes">("servicos");
+
+  // Estados de edição unificada
+  const [editingItem, setEditingItem] = useState<any | null>(null);
+  const [editingType, setEditingType] = useState<"servico" | "abastecimento" | "manutencao" | null>(null);
+
+  const handleStartEdit = (item: any, type: "servico" | "abastecimento" | "manutencao") => {
+    setEditingItem({ ...item });
+    setEditingType(type);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem || !editingType) return;
+
+    try {
+      if (editingType === "servico") {
+        await updateS(editingItem.id, {
+          cliente: editingItem.cliente,
+          veiculo: editingItem.veiculo || "",
+          origem: editingItem.origem || "",
+          destino: editingItem.destino || "",
+          data: editingItem.data || "",
+          hora: editingItem.hora || "",
+          valor: Number(editingItem.valor) || 0,
+          kmInicial: Number(editingItem.kmInicial) || 0,
+          kmFinal: Number(editingItem.kmFinal) || 0,
+          kmPercorrido: (Number(editingItem.kmFinal) - Number(editingItem.kmInicial) > 0) ? (Number(editingItem.kmFinal) - Number(editingItem.kmInicial)) : 0,
+          descricao: editingItem.descricao || ""
+        });
+      } else if (editingType === "abastecimento") {
+        await updateA(editingItem.id, {
+          veiculo: editingItem.veiculo || "",
+          data: editingItem.data || "",
+          km: Number(editingItem.km) || 0,
+          litros: Number(editingItem.litros) || 0,
+          valor: Number(editingItem.valor) || 0
+        });
+      } else if (editingType === "manutencao") {
+        await updateM(editingItem.id, {
+          tipo: editingItem.tipo || "",
+          veiculo: editingItem.veiculo || "",
+          data: editingItem.data || "",
+          km: Number(editingItem.km) || 0,
+          valor: Number(editingItem.valor) || 0,
+          observacoes: editingItem.observacoes || ""
+        });
+      }
+      alert("Registro atualizado com sucesso!");
+      setEditingItem(null);
+      setEditingType(null);
+    } catch (error) {
+      console.error("Erro ao salvar edição:", error);
+      alert("Erro ao salvar as alterações.");
+    }
+  };
+
+  const handleDeleteItem = async (id: string, type: "servico" | "abastecimento" | "manutencao") => {
+    const label = type === "servico" ? "serviço" : type === "abastecimento" ? "abastecimento" : "registro de manutenção";
+    if (window.confirm(`Tem certeza de que deseja excluir este ${label}?`)) {
+      try {
+        if (type === "servico") {
+          await deleteS(id);
+        } else if (type === "abastecimento") {
+          await deleteA(id);
+        } else if (type === "manutencao") {
+          await deleteM(id);
+        }
+        alert("Registro excluído com sucesso!");
+      } catch (error) {
+        console.error("Erro ao deletar registro:", error);
+        alert("Erro ao excluir o registro.");
+      }
+    }
+  };
 
   // Estrutura agrupada por ano e mês
   const reportsData = useMemo(() => {
@@ -424,12 +500,18 @@ export default function RelatoriosPage() {
                           <div className="p-8 text-center text-sm text-muted-foreground">Nenhum serviço registrado neste mês.</div>
                         ) : (
                           activeMonthData.servicos.map((s, index) => (
-                            <div key={s.id || index} className="p-4 flex justify-between items-center text-sm hover:bg-muted/20">
-                              <div>
-                                <p className="font-semibold text-foreground">{s.cliente} ({s.veiculo})</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">{s.origem} → {s.destino} | {s.data}</p>
+                            <div key={s.id || index} className="p-4 flex justify-between items-center text-sm hover:bg-muted/20 gap-4">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-foreground truncate">{s.cliente} ({s.veiculo})</p>
+                                <p className="text-xs text-muted-foreground mt-0.5 truncate">{s.origem} → {s.destino} | {s.data}</p>
                               </div>
-                              <span className="font-bold text-green-500">R$ {Number(s.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                              <div className="flex items-center gap-3 shrink-0">
+                                <span className="font-bold text-green-500">R$ {Number(s.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                                <div className="flex gap-1">
+                                  <button onClick={() => handleStartEdit(s, "servico")} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded transition-colors cursor-pointer" title="Editar"><Edit2 className="h-3.5 w-3.5" /></button>
+                                  <button onClick={() => handleDeleteItem(s.id, "servico")} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
+                                </div>
+                              </div>
                             </div>
                           ))
                         )
@@ -440,12 +522,18 @@ export default function RelatoriosPage() {
                           <div className="p-8 text-center text-sm text-muted-foreground">Nenhum abastecimento registrado neste mês.</div>
                         ) : (
                           activeMonthData.abastecimentos.map((a, index) => (
-                            <div key={a.id || index} className="p-4 flex justify-between items-center text-sm hover:bg-muted/20">
-                              <div>
-                                <p className="font-semibold text-foreground">{a.veiculo || "Geral"}</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">{a.litros} Litros | KM: {(Number(a.km) || 0).toLocaleString("pt-BR")} | {a.data}</p>
+                            <div key={a.id || index} className="p-4 flex justify-between items-center text-sm hover:bg-muted/20 gap-4">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-foreground truncate">{a.veiculo || "Geral"}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5 truncate">{a.litros} Litros | KM: {(Number(a.km) || 0).toLocaleString("pt-BR")} | {a.data}</p>
                               </div>
-                              <span className="font-bold text-red-500">R$ {Number(a.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                              <div className="flex items-center gap-3 shrink-0">
+                                <span className="font-bold text-red-500">R$ {Number(a.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                                <div className="flex gap-1">
+                                  <button onClick={() => handleStartEdit(a, "abastecimento")} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded transition-colors cursor-pointer" title="Editar"><Edit2 className="h-3.5 w-3.5" /></button>
+                                  <button onClick={() => handleDeleteItem(a.id, "abastecimento")} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
+                                </div>
+                              </div>
                             </div>
                           ))
                         )
@@ -456,12 +544,18 @@ export default function RelatoriosPage() {
                           <div className="p-8 text-center text-sm text-muted-foreground">Nenhuma manutenção registrada neste mês.</div>
                         ) : (
                           activeMonthData.manutencoes.map((m, index) => (
-                            <div key={m.id || index} className="p-4 flex justify-between items-center text-sm hover:bg-muted/20">
-                              <div>
-                                <p className="font-semibold text-foreground">{m.tipo} ({m.veiculo})</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">KM: {(Number(m.km) || 0).toLocaleString("pt-BR")} | {m.data}</p>
+                            <div key={m.id || index} className="p-4 flex justify-between items-center text-sm hover:bg-muted/20 gap-4">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-foreground truncate">{m.tipo} ({m.veiculo})</p>
+                                <p className="text-xs text-muted-foreground mt-0.5 truncate">KM: {(Number(m.km) || 0).toLocaleString("pt-BR")} | {m.data}</p>
                               </div>
-                              <span className="font-bold text-red-500">R$ {Number(m.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                              <div className="flex items-center gap-3 shrink-0">
+                                <span className="font-bold text-red-500">R$ {Number(m.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                                <div className="flex gap-1">
+                                  <button onClick={() => handleStartEdit(m, "manutencao")} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded transition-colors cursor-pointer" title="Editar"><Edit2 className="h-3.5 w-3.5" /></button>
+                                  <button onClick={() => handleDeleteItem(m.id, "manutencao")} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
+                                </div>
+                              </div>
                             </div>
                           ))
                         )
@@ -479,6 +573,133 @@ export default function RelatoriosPage() {
 
         </div>
       )}
+
+      {/* Modal Unificado de Edição */}
+      <AnimatePresence>
+        {editingItem && editingType && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => { setEditingItem(null); setEditingType(null); }}
+              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-[2rem] bg-background shadow-2xl overflow-hidden md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:max-w-md md:rounded-2xl"
+            >
+              <div className="flex items-center justify-between border-b border-border p-6 bg-card">
+                <h2 className="text-xl font-bold">
+                  Editar {editingType === 'servico' ? 'Serviço' : editingType === 'abastecimento' ? 'Abastecimento' : 'Manutenção'}
+                </h2>
+                <button onClick={() => { setEditingItem(null); setEditingType(null); }} className="rounded-full bg-muted p-2">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEdit} className="space-y-4 p-6 overflow-y-auto max-h-[60vh] bg-background">
+                {editingType === "servico" && (
+                  <>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-muted-foreground uppercase">Cliente</label>
+                      <input type="text" value={editingItem.cliente || ""} onChange={e => setEditingItem({ ...editingItem, cliente: e.target.value })} required className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-muted-foreground uppercase">Veículo</label>
+                      <input type="text" value={editingItem.veiculo || ""} onChange={e => setEditingItem({ ...editingItem, veiculo: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">Origem</label>
+                        <input type="text" value={editingItem.origem || ""} onChange={e => setEditingItem({ ...editingItem, origem: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">Destino</label>
+                        <input type="text" value={editingItem.destino || ""} onChange={e => setEditingItem({ ...editingItem, destino: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">Data</label>
+                        <input type="date" value={editingItem.data || ""} onChange={e => setEditingItem({ ...editingItem, data: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">Valor</label>
+                        <input type="number" step="0.01" value={editingItem.valor || 0} onChange={e => setEditingItem({ ...editingItem, valor: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary font-bold text-green-600" />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {editingType === "abastecimento" && (
+                  <>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-muted-foreground uppercase">Veículo</label>
+                      <input type="text" value={editingItem.veiculo || ""} onChange={e => setEditingItem({ ...editingItem, veiculo: e.target.value })} required className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">Data</label>
+                        <input type="date" value={editingItem.data || ""} onChange={e => setEditingItem({ ...editingItem, data: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">KM</label>
+                        <input type="number" value={editingItem.km || 0} onChange={e => setEditingItem({ ...editingItem, km: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">Litros</label>
+                        <input type="number" step="0.1" value={editingItem.litros || 0} onChange={e => setEditingItem({ ...editingItem, litros: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">Valor</label>
+                        <input type="number" step="0.01" value={editingItem.valor || 0} onChange={e => setEditingItem({ ...editingItem, valor: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary font-bold text-red-500" />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {editingType === "manutencao" && (
+                  <>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-muted-foreground uppercase">Tipo / Peça</label>
+                      <input type="text" value={editingItem.tipo || ""} onChange={e => setEditingItem({ ...editingItem, tipo: e.target.value })} required className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-muted-foreground uppercase">Veículo</label>
+                      <input type="text" value={editingItem.veiculo || ""} onChange={e => setEditingItem({ ...editingItem, veiculo: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">Data</label>
+                        <input type="date" value={editingItem.data || ""} onChange={e => setEditingItem({ ...editingItem, data: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">KM</label>
+                        <input type="number" value={editingItem.km || 0} onChange={e => setEditingItem({ ...editingItem, km: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-muted-foreground uppercase">Valor</label>
+                      <input type="number" step="0.01" value={editingItem.valor || 0} onChange={e => setEditingItem({ ...editingItem, valor: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary font-bold text-red-500" />
+                    </div>
+                  </>
+                )}
+
+                <div className="pt-4 flex gap-3">
+                  <button type="button" onClick={() => { setEditingItem(null); setEditingType(null); }} className="flex-1 py-3 text-sm font-semibold text-muted-foreground bg-muted rounded-xl hover:bg-border transition-colors">
+                    Cancelar
+                  </button>
+                  <button type="submit" className="flex-1 py-3 text-sm font-semibold text-primary-foreground bg-primary rounded-xl hover:opacity-90 transition-all">
+                    Salvar
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
