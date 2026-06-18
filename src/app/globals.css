@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-graphite: #2d2d30;
+  --color-graphite-dark: #1e1e20;
+}
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --primary: #2d2d30;
+  --primary-foreground: #f8fafc;
+  
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  
+  --destructive: #ef4444;
+  --destructive-foreground: #f8fafc;
+
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #f8fafc;
+  
+  --card: #171717;
+  --card-foreground: #f8fafc;
+  
+  --border: #262626;
+  --input: #262626;
+  --primary: #f8fafc;
+  --primary-foreground: #0a0a0a;
+  
+  --muted: #262626;
+  --muted-foreground: #94a3b8;
+  
+  --destructive: #7f1d1d;
+  --destructive-foreground: #f8fafc;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Utilitário para as telas com grafite/logo */
+.bg-graphite {
+  background-color: var(--color-graphite);
+}
