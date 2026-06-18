@@ -1,38 +1,29 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { ArrowUpRight, ArrowDownRight, DollarSign, Wallet } from "lucide-react";
-import { collection, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useCollection } from "@/hooks/useCollection";
+
+// Mock data fallbacks
+const initialMockServices = [
+  { id: "s1", cliente: "João Silva", veiculo: "Honda Civic", valor: 250, data: "2026-06-18", hora: "14:30" },
+  { id: "s2", cliente: "Maria Oliveira", veiculo: "Toyota Corolla", valor: 380, data: "2026-06-17", hora: "10:15" }
+];
+const initialMockFuel = [
+  { id: "a1", veiculo: "Guincho 01", location: "Posto Ipiranga", valor: 350, data: "2026-06-18" },
+  { id: "a2", veiculo: "Guincho 02", location: "Posto Shell", valor: 310, data: "2026-06-17" }
+];
+const initialMockMaintenance = [
+  { id: "m1", tipo: "Troca de Óleo e Filtros", veiculo: "Guincho 02", valor: 450, data: "2026-06-10" }
+];
 
 export default function FinanceiroPage() {
-  const [servicos, setServicos] = useState<any[]>([]);
-  const [abastecimentos, setAbastecimentos] = useState<any[]>([]);
-  const [manutencoes, setManutencoes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: servicos, loading: loadingS } = useCollection("servicos", initialMockServices);
+  const { data: abastecimentos, loading: loadingA } = useCollection("abastecimentos", initialMockFuel);
+  const { data: manutencoes, loading: loadingM } = useCollection("manutencoes", initialMockMaintenance);
 
-  // Escuta todas as coleções relevantes para o Financeiro
-  useEffect(() => {
-    const unsubServicos = onSnapshot(collection(db, "servicos"), (snap) => {
-      setServicos(snap.docs.map(doc => doc.data()));
-    }, (err) => console.error(err));
-
-    const unsubAbastecimentos = onSnapshot(collection(db, "abastecimentos"), (snap) => {
-      setAbastecimentos(snap.docs.map(doc => doc.data()));
-    }, (err) => console.error(err));
-
-    const unsubManutencoes = onSnapshot(collection(db, "manutencoes"), (snap) => {
-      setManutencoes(snap.docs.map(doc => doc.data()));
-      setLoading(false);
-    }, (err) => console.error(err));
-
-    return () => {
-      unsubServicos();
-      unsubAbastecimentos();
-      unsubManutencoes();
-    };
-  }, []);
+  const loading = loadingS || loadingA || loadingM;
 
   // Calcula os totais financeiros
   const totalReceitas = useMemo(() => {

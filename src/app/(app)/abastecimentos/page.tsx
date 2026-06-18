@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, Save, Fuel, Calendar } from "lucide-react";
-import { collection, onSnapshot, query, orderBy, addDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useCollection } from "@/hooks/useCollection";
 
 type FuelFormData = {
   data: string;
@@ -15,48 +14,34 @@ type FuelFormData = {
   veiculo: string;
 };
 
+const initialMockFuel = [
+  { id: "a1", veiculo: "Guincho 01", location: "Posto Ipiranga", data: "2026-06-18", km: 145200, litros: 60, valor: 350 },
+  { id: "a2", veiculo: "Guincho 02", location: "Posto Shell", data: "2026-06-17", km: 85400, litros: 50, valor: 310 }
+];
+
 export default function AbastecimentosPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [abastecimentos, setAbastecimentos] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: abastecimentos, loading, addDocument } = useCollection("abastecimentos", initialMockFuel);
   const { register, handleSubmit, reset } = useForm<FuelFormData>();
-
-  // Escuta os registros do Firestore em tempo real
-  useEffect(() => {
-    const q = query(collection(db, "abastecimentos"), orderBy("createdAt", "desc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setAbastecimentos(items);
-      setLoading(false);
-    }, (error) => {
-      console.error("Erro no Firestore (abastecimentos):", error);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
 
   const onSubmit = async (data: FuelFormData) => {
     try {
-      await addDoc(collection(db, "abastecimentos"), {
+      await addDocument({
         data: data.data || new Date().toISOString().split("T")[0],
         km: Number(data.km) || 0,
         litros: Number(data.litros) || 0,
         valor: Number(data.valor) || 0,
-        veiculo: data.veiculo || "Geral",
-        createdAt: new Date()
+        veiculo: data.veiculo || "Geral"
       });
       setIsFormOpen(false);
       reset();
       alert("Abastecimento registrado com sucesso!");
     } catch (error) {
       console.error("Erro ao salvar abastecimento:", error);
-      alert("Erro ao salvar o abastecimento. Verifique se configurou as chaves no Vercel/Firebase.");
+      alert("Erro ao salvar o abastecimento.");
     }
   };
+
 
   return (
     <div className="space-y-6 relative h-full">

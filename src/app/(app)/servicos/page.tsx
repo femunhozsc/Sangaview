@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, Camera, Save, Truck, MapPin } from "lucide-react";
-import { collection, onSnapshot, query, orderBy, addDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useCollection } from "@/hooks/useCollection";
 
 type ServiceFormData = {
   cliente: string;
@@ -22,37 +21,23 @@ type ServiceFormData = {
   descricao: string;
 };
 
+const initialMockServices = [
+  { id: "s1", cliente: "João Silva", telefone: "(11) 99999-8888", data: "2026-06-18", hora: "14:30", origem: "Centro", destino: "Vila Nova", veiculo: "Honda Civic", placa: "ABC-1234", kmInicial: 100, kmFinal: 125, kmPercorrido: 25, valor: 250, descricao: "Serviço padrão de guincho." },
+  { id: "s2", cliente: "Maria Oliveira", telefone: "(11) 98888-7777", data: "2026-06-17", hora: "10:15", origem: "Aeroporto", destino: "Jardins", veiculo: "Toyota Corolla", placa: "XYZ-9876", kmInicial: 200, kmFinal: 235, kmPercorrido: 35, valor: 380, descricao: "Carro com pane mecânica." }
+];
+
 export default function ServicosPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [servicos, setServicos] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: servicos, loading, addDocument } = useCollection("servicos", initialMockServices);
   const { register, watch, handleSubmit, reset } = useForm<ServiceFormData>();
 
   const kmInicial = watch("kmInicial", 0);
   const kmFinal = watch("kmFinal", 0);
   const kmPercorrido = (Number(kmFinal) - Number(kmInicial) > 0) ? (Number(kmFinal) - Number(kmInicial)) : 0;
 
-  // Escuta os serviços do Firestore em tempo real
-  useEffect(() => {
-    const q = query(collection(db, "servicos"), orderBy("createdAt", "desc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setServicos(items);
-      setLoading(false);
-    }, (error) => {
-      console.error("Erro no Firestore (servicos):", error);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
   const onSubmit = async (data: ServiceFormData) => {
     try {
-      await addDoc(collection(db, "servicos"), {
+      await addDocument({
         cliente: data.cliente,
         telefone: data.telefone || "",
         data: data.data || new Date().toISOString().split("T")[0],
@@ -65,8 +50,7 @@ export default function ServicosPage() {
         kmFinal: Number(data.kmFinal) || 0,
         kmPercorrido: kmPercorrido,
         valor: Number(data.valor) || 0,
-        descricao: data.descricao || "",
-        createdAt: new Date()
+        descricao: data.descricao || ""
       });
       
       setIsFormOpen(false);
@@ -74,7 +58,7 @@ export default function ServicosPage() {
       alert("Serviço salvo com sucesso!");
     } catch (error) {
       console.error("Erro ao salvar serviço:", error);
-      alert("Erro ao salvar o serviço. Verifique se configurou as chaves no Vercel/Firebase.");
+      alert("Erro ao salvar o serviço.");
     }
   };
 

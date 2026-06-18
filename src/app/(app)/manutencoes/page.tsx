@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, Save, Wrench, CalendarCheck } from "lucide-react";
-import { collection, onSnapshot, query, orderBy, addDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useCollection } from "@/hooks/useCollection";
 
 type MaintenanceFormData = {
   tipo: string;
@@ -16,49 +15,35 @@ type MaintenanceFormData = {
   veiculo: string;
 };
 
+const initialMockMaintenance = [
+  { id: "m1", tipo: "Troca de Óleo e Filtros", veiculo: "Guincho 02", data: "2026-06-10", km: 85000, valor: 450, observacoes: "Revisão preventiva" },
+  { id: "m2", tipo: "Revisão de Freios", veiculo: "Guincho 01", data: "2026-06-05", km: 144200, valor: 650, observacoes: "Pastilhas e discos trocados" }
+];
+
 export default function ManutencoesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [manutencoes, setManutencoes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: manutencoes, loading, addDocument } = useCollection("manutencoes", initialMockMaintenance);
   const { register, handleSubmit, reset } = useForm<MaintenanceFormData>();
-
-  // Escuta os registros do Firestore em tempo real
-  useEffect(() => {
-    const q = query(collection(db, "manutencoes"), orderBy("createdAt", "desc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setManutencoes(items);
-      setLoading(false);
-    }, (error) => {
-      console.error("Erro no Firestore (manutencoes):", error);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
 
   const onSubmit = async (data: MaintenanceFormData) => {
     try {
-      await addDoc(collection(db, "manutencoes"), {
+      await addDocument({
         tipo: data.tipo,
         data: data.data || new Date().toISOString().split("T")[0],
         km: Number(data.km) || 0,
         valor: Number(data.valor) || 0,
         observacoes: data.observacoes || "",
-        veiculo: data.veiculo || "Geral",
-        createdAt: new Date()
+        veiculo: data.veiculo || "Geral"
       });
       setIsFormOpen(false);
       reset();
       alert("Manutenção registrada com sucesso!");
     } catch (error) {
       console.error("Erro ao salvar manutenção:", error);
-      alert("Erro ao salvar a manutenção. Verifique se configurou as chaves no Vercel/Firebase.");
+      alert("Erro ao salvar a manutenção.");
     }
   };
+
 
   return (
     <div className="space-y-6 relative h-full">

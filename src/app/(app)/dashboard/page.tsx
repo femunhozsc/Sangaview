@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { 
@@ -12,8 +12,7 @@ import {
   DollarSign,
   Fuel
 } from "lucide-react";
-import { collection, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useCollection } from "@/hooks/useCollection";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -30,33 +29,25 @@ const itemVariants = {
   show: { y: 0, opacity: 1, transition: { type: "spring" as const, stiffness: 300, damping: 24 } }
 };
 
+// Mock data fallbacks
+const initialMockServices = [
+  { id: "s1", cliente: "João Silva", veiculo: "Honda Civic", valor: 250, data: "2026-06-18", origem: "Centro", destino: "Vila Nova", kmPercorrido: 25 },
+  { id: "s2", cliente: "Maria Oliveira", veiculo: "Toyota Corolla", valor: 380, data: "2026-06-17", origem: "Aeroporto", destino: "Jardins", kmPercorrido: 35 }
+];
+const initialMockFuel = [
+  { id: "a1", veiculo: "Guincho 01", location: "Posto Ipiranga", valor: 350, data: "2026-06-18", litros: 60 },
+  { id: "a2", veiculo: "Guincho 02", location: "Posto Shell", valor: 310, data: "2026-06-17", litros: 50 }
+];
+const initialMockMaintenance = [
+  { id: "m1", tipo: "Troca de Óleo e Filtros", veiculo: "Guincho 02", valor: 450, data: "2026-06-10", km: 85000 }
+];
+
 export default function Dashboard() {
-  const [servicos, setServicos] = useState<any[]>([]);
-  const [abastecimentos, setAbastecimentos] = useState<any[]>([]);
-  const [manutencoes, setManutencoes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: servicos, loading: loadingS } = useCollection("servicos", initialMockServices);
+  const { data: abastecimentos, loading: loadingA } = useCollection("abastecimentos", initialMockFuel);
+  const { data: manutencoes, loading: loadingM } = useCollection("manutencoes", initialMockMaintenance);
 
-  // Escuta todas as coleções relevantes para o Dashboard em tempo real
-  useEffect(() => {
-    const unsubServicos = onSnapshot(collection(db, "servicos"), (snap) => {
-      setServicos(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, (err) => console.error(err));
-
-    const unsubAbastecimentos = onSnapshot(collection(db, "abastecimentos"), (snap) => {
-      setAbastecimentos(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, (err) => console.error(err));
-
-    const unsubManutencoes = onSnapshot(collection(db, "manutencoes"), (snap) => {
-      setManutencoes(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      setLoading(false);
-    }, (err) => console.error(err));
-
-    return () => {
-      unsubServicos();
-      unsubAbastecimentos();
-      unsubManutencoes();
-    };
-  }, []);
+  const loading = loadingS || loadingA || loadingM;
 
   // Calcula estatísticas
   const faturamentoTotal = useMemo(() => {

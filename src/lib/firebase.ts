@@ -10,9 +10,26 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Inicializa o Firebase apenas se ele não tiver sido inicializado antes (evita erros no Next.js)
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+// Verifica se as chaves mínimas estão configuradas
+export const isFirebaseConfigured = !!(
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+);
 
-// Exporta o banco de dados para ser usado nos serviços
-export const db = getFirestore(app);
+let app;
+let db: any = null;
+
+if (isFirebaseConfigured) {
+  try {
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+    db = getFirestore(app);
+  } catch (error) {
+    console.error("Erro ao inicializar o Firebase:", error);
+  }
+} else {
+  console.warn("Firebase não configurado. O app rodará no modo de demonstração com armazenamento local (LocalStorage).");
+}
+
+export { db };
+
 
