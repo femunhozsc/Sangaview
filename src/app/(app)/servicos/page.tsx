@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, Camera, Save, Truck, MapPin } from "lucide-react";
+import { collection, onSnapshot, query, orderBy, addDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 type ServiceFormData = {
   cliente: string;
@@ -22,18 +24,58 @@ type ServiceFormData = {
 
 export default function ServicosPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [servicos, setServicos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const { register, watch, handleSubmit, reset } = useForm<ServiceFormData>();
 
   const kmInicial = watch("kmInicial", 0);
   const kmFinal = watch("kmFinal", 0);
-  const kmPercorrido = (kmFinal - kmInicial > 0) ? (kmFinal - kmInicial) : 0;
+  const kmPercorrido = (Number(kmFinal) - Number(kmInicial) > 0) ? (Number(kmFinal) - Number(kmInicial)) : 0;
 
-  const onSubmit = (data: ServiceFormData) => {
-    console.log("Novo Serviço:", { ...data, kmPercorrido });
-    // TODO: Salvar no Firebase
-    setIsFormOpen(false);
-    reset();
-    alert("Serviço salvo com sucesso!");
+  // Escuta os serviços do Firestore em tempo real
+  useEffect(() => {
+    const q = query(collection(db, "servicos"), orderBy("createdAt", "desc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const items = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setServicos(items);
+      setLoading(false);
+    }, (error) => {
+      console.error("Erro no Firestore (servicos):", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const onSubmit = async (data: ServiceFormData) => {
+    try {
+      await addDoc(collection(db, "servicos"), {
+        cliente: data.cliente,
+        telefone: data.telefone || "",
+        data: data.data || new Date().toISOString().split("T")[0],
+        hora: data.hora || "",
+        origem: data.origem || "",
+        destino: data.destino || "",
+        veiculo: data.veiculo || "",
+        placa: data.placa || "",
+        kmInicial: Number(data.kmInicial) || 0,
+        kmFinal: Number(data.kmFinal) || 0,
+        kmPercorrido: kmPercorrido,
+        valor: Number(data.valor) || 0,
+        descricao: data.descricao || "",
+        createdAt: new Date()
+      });
+      
+      setIsFormOpen(false);
+      reset();
+      alert("Serviço salvo com sucesso!");
+    } catch (error) {
+      console.error("Erro ao salvar serviço:", error);
+      alert("Erro ao salvar o serviço. Verifique se configurou as chaves no Vercel/Firebase.");
+    }
   };
 
   return (
@@ -52,33 +94,42 @@ export default function ServicosPage() {
         </button>
       </div>
 
-      {/* Lista de Serviços (Mock) */}
-      <div className="grid gap-4">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl bg-card p-5 shadow-sm border border-border gap-4">
-            <div className="flex gap-4">
-              <div className="rounded-full bg-blue-500/10 p-3 h-fit">
-                <Truck className="h-6 w-6 text-blue-500" />
+      {/* Lista de Serviços */}
+      {loading ? (
+        <div className="text-center py-12 text-muted-foreground">Carregando serviços...</div>
+      ) : servicos.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-border rounded-2xl bg-card">
+          Nenhum serviço registrado. Clique em "Novo Serviço" para começar!
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {servicos.map((servico) => (
+            <div key={servico.id} className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl bg-card p-5 shadow-sm border border-border gap-4">
+              <div className="flex gap-4">
+                <div className="rounded-full bg-blue-500/10 p-3 h-fit">
+                  <Truck className="h-6 w-6 text-blue-500" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">{servico.cliente} ({servico.veiculo})</h3>
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                    <MapPin className="h-3 w-3" />
+                    <span>{servico.origem || "Não informada"} → {servico.destino || "Não informado"}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
+                    <span className="bg-muted px-2 py-1 rounded-md">{servico.data} {servico.hora}</span>
+                    <span className="bg-muted px-2 py-1 rounded-md">{servico.kmPercorrido || 0} km rodados</span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-lg">João Silva (Honda Civic)</h3>
-                <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-                  <MapPin className="h-3 w-3" />
-                  <span>Centro → Vila Nova</span>
-                </div>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
-                  <span className="bg-muted px-2 py-1 rounded-md">Hoje, 14:30</span>
-                  <span className="bg-muted px-2 py-1 rounded-md">25 km rodados</span>
-                </div>
+              <div className="text-left sm:text-right">
+                <p className="text-xl font-bold text-green-500">
+                  R$ {Number(servico.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
               </div>
             </div>
-            <div className="text-left sm:text-right">
-              <p className="text-xl font-bold text-green-500">R$ 250,00</p>
-              <button className="text-sm text-blue-500 hover:underline mt-1 font-medium">Ver detalhes</button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Modal/Drawer de Formulário */}
       <AnimatePresence>
@@ -218,3 +269,4 @@ export default function ServicosPage() {
     </div>
   );
 }
+

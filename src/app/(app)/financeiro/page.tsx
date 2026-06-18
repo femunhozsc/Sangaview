@@ -1,9 +1,90 @@
 "use client";
 
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { ArrowUpRight, ArrowDownRight, DollarSign, Wallet } from "lucide-react";
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function FinanceiroPage() {
+  const [servicos, setServicos] = useState<any[]>([]);
+  const [abastecimentos, setAbastecimentos] = useState<any[]>([]);
+  const [manutencoes, setManutencoes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Escuta todas as coleções relevantes para o Financeiro
+  useEffect(() => {
+    const unsubServicos = onSnapshot(collection(db, "servicos"), (snap) => {
+      setServicos(snap.docs.map(doc => doc.data()));
+    }, (err) => console.error(err));
+
+    const unsubAbastecimentos = onSnapshot(collection(db, "abastecimentos"), (snap) => {
+      setAbastecimentos(snap.docs.map(doc => doc.data()));
+    }, (err) => console.error(err));
+
+    const unsubManutencoes = onSnapshot(collection(db, "manutencoes"), (snap) => {
+      setManutencoes(snap.docs.map(doc => doc.data()));
+      setLoading(false);
+    }, (err) => console.error(err));
+
+    return () => {
+      unsubServicos();
+      unsubAbastecimentos();
+      unsubManutencoes();
+    };
+  }, []);
+
+  // Calcula os totais financeiros
+  const totalReceitas = useMemo(() => {
+    return servicos.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
+  }, [servicos]);
+
+  const totalDespesas = useMemo(() => {
+    const totalCombustivel = abastecimentos.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
+    const totalManut = manutencoes.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
+    return totalCombustivel + totalManut;
+  }, [abastecimentos, manutencoes]);
+
+  const lucroLiquido = totalReceitas - totalDespesas;
+
+  // Combina e ordena o extrato unificado de transações
+  const extratoList = useMemo(() => {
+    const getTimestamp = (item: any) => {
+      if (item.createdAt && typeof item.createdAt.toDate === "function") {
+        return item.createdAt.toDate();
+      }
+      return item.createdAt ? new Date(item.createdAt) : new Date();
+    };
+
+    const list = [
+      ...servicos.map(s => ({
+        tipo: "receita",
+        desc: `Serviço: ${s.cliente} (${s.veiculo})`,
+        valor: Number(s.valor) || 0,
+        data: s.data || "",
+        dateObj: getTimestamp(s)
+      })),
+      ...abastecimentos.map(a => ({
+        tipo: "despesa",
+        desc: `Abastecimento: ${a.veiculo}`,
+        valor: Number(a.valor) || 0,
+        data: a.data || "",
+        dateObj: getTimestamp(a)
+      })),
+      ...manutencoes.map(m => ({
+        tipo: "despesa",
+        desc: `Manutenção: ${m.tipo} (${m.veiculo})`,
+        valor: Number(m.valor) || 0,
+        data: m.data || "",
+        dateObj: getTimestamp(m)
+      }))
+    ];
+
+    return list
+      .sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime())
+      .slice(0, 10);
+  }, [servicos, abastecimentos, manutencoes]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
@@ -17,21 +98,27 @@ export default function FinanceiroPage() {
             <span className="text-sm font-medium text-muted-foreground">Receitas (Serviços)</span>
             <div className="p-2 rounded-full bg-green-500/10 text-green-500"><ArrowUpRight className="h-5 w-5" /></div>
           </div>
-          <p className="mt-4 text-3xl font-bold text-green-500">R$ 18.500</p>
+          <p className="mt-4 text-3xl font-bold text-green-500">
+            R$ {totalReceitas.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
         </div>
         <div className="rounded-2xl bg-card p-6 shadow-sm border border-border">
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium text-muted-foreground">Despesas (Total)</span>
             <div className="p-2 rounded-full bg-red-500/10 text-red-500"><ArrowDownRight className="h-5 w-5" /></div>
           </div>
-          <p className="mt-4 text-3xl font-bold text-red-500">R$ 6.200</p>
+          <p className="mt-4 text-3xl font-bold text-red-500">
+            R$ {totalDespesas.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
         </div>
         <div className="rounded-2xl bg-card p-6 shadow-sm border border-border border-l-4 border-l-blue-500">
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium text-muted-foreground">Lucro Líquido</span>
             <div className="p-2 rounded-full bg-blue-500/10 text-blue-500"><Wallet className="h-5 w-5" /></div>
           </div>
-          <p className="mt-4 text-3xl font-bold text-blue-500">R$ 12.300</p>
+          <p className={`mt-4 text-3xl font-bold ${lucroLiquido >= 0 ? "text-blue-500" : "text-red-500"}`}>
+            R$ {lucroLiquido.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
         </div>
       </div>
 
@@ -42,24 +129,26 @@ export default function FinanceiroPage() {
           </h2>
         </div>
         <div className="divide-y divide-border">
-          {[
-            { tipo: 'receita', desc: 'Serviço Guincho - Honda Civic', valor: '250,00', data: '18/06/2026' },
-            { tipo: 'despesa', desc: 'Abastecimento Guincho 01', valor: '350,00', data: '18/06/2026' },
-            { tipo: 'receita', desc: 'Serviço Guincho - BMW X1', valor: '400,00', data: '17/06/2026' },
-            { tipo: 'despesa', desc: 'Troca de Óleo', valor: '450,00', data: '15/06/2026' },
-          ].map((item, i) => (
-            <div key={i} className="p-4 sm:p-6 flex justify-between items-center hover:bg-muted/50 transition-colors">
-              <div>
-                <p className="font-medium">{item.desc}</p>
-                <p className="text-sm text-muted-foreground mt-1">{item.data}</p>
+          {loading ? (
+            <div className="p-6 text-center text-muted-foreground">Carregando extrato...</div>
+          ) : extratoList.length === 0 ? (
+            <div className="p-6 text-center text-muted-foreground">Nenhuma transação registrada.</div>
+          ) : (
+            extratoList.map((item, i) => (
+              <div key={i} className="p-4 sm:p-6 flex justify-between items-center hover:bg-muted/50 transition-colors">
+                <div>
+                  <p className="font-medium">{item.desc}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{item.data}</p>
+                </div>
+                <p className={`font-bold ${item.tipo === 'receita' ? 'text-green-500' : 'text-red-500'}`}>
+                  {item.tipo === 'receita' ? '+' : '-'} R$ {item.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
               </div>
-              <p className={`font-bold ${item.tipo === 'receita' ? 'text-green-500' : 'text-red-500'}`}>
-                {item.tipo === 'receita' ? '+' : '-'} R$ {item.valor}
-              </p>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>
   );
 }
+
