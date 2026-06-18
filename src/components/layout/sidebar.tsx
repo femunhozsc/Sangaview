@@ -12,7 +12,8 @@ import {
   CircleDollarSign,
   Moon,
   Sun,
-  X
+  X,
+  BarChart3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,7 @@ const menuItems = [
   { name: "Abastecimentos", href: "/abastecimentos", icon: Fuel },
   { name: "Manutenções", href: "/manutencoes", icon: Wrench },
   { name: "Financeiro", href: "/financeiro", icon: CircleDollarSign },
+  { name: "Relatórios", href: "/relatorios", icon: BarChart3 },
 ];
 
 interface SidebarProps {

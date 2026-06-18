@@ -131,7 +131,7 @@ export default function ServicosPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-x-0 bottom-0 z-50 mt-24 flex h-[90vh] flex-col rounded-t-[2rem] bg-background shadow-2xl md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:h-auto md:max-h-[90vh] md:w-full md:max-w-2xl md:rounded-2xl"
+              className="fixed inset-x-0 bottom-0 z-50 mt-24 flex h-[90vh] flex-col rounded-t-[2rem] bg-background shadow-2xl overflow-hidden md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:h-auto md:max-h-[90vh] md:w-full md:max-w-2xl md:rounded-2xl"
             >
               <div className="flex items-center justify-between border-b border-border p-6">
                 <h2 className="text-xl font-bold">Cadastrar Serviço</h2>
@@ -143,7 +143,7 @@ export default function ServicosPage() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6">
+              <div className="flex-1 overflow-y-auto p-6 overscroll-contain">
                 <form id="service-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -157,7 +157,7 @@ export default function ServicosPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Data</label>
                       <input type="date" {...register("data")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" />

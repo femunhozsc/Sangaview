@@ -84,7 +84,7 @@ export default function ManutencoesPage() {
                   </div>
                   <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground mt-2">
                     <span className="bg-muted px-2 py-1 rounded-md">{item.veiculo}</span>
-                    <span className="bg-muted px-2 py-1 rounded-md">KM: {item.km.toLocaleString("pt-BR")}</span>
+                    <span className="bg-muted px-2 py-1 rounded-md">KM: {(Number(item.km) || 0).toLocaleString("pt-BR")}</span>
                   </div>
                 </div>
               </div>

@@ -85,49 +85,9 @@ export default function Dashboard() {
     return manutencoes.slice(0, 2);
   }, [manutencoes]);
 
-  // Array de cards de estatísticas dinâmicos
-  const stats = useMemo(() => [
-    { 
-      name: "Faturamento do Mês", 
-      value: `R$ ${faturamentoTotal.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, 
-      change: "Atual", 
-      trend: "up", 
-      icon: TrendingUp, 
-      color: "text-green-500", 
-      bg: "bg-green-500/10",
-      href: "/financeiro"
-    },
-    { 
-      name: "Custos do Mês", 
-      value: `R$ ${custosTotal.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, 
-      change: "Atual", 
-      trend: "down", 
-      icon: TrendingDown, 
-      color: "text-red-500", 
-      bg: "bg-red-500/10",
-      href: "/financeiro"
-    },
-    { 
-      name: "Lucro Estimado", 
-      value: `R$ ${lucroEstimado.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, 
-      change: "Líquido", 
-      trend: lucroEstimado >= 0 ? "up" : "down", 
-      icon: DollarSign, 
-      color: lucroEstimado >= 0 ? "text-blue-500" : "text-red-500", 
-      bg: lucroEstimado >= 0 ? "bg-blue-500/10" : "bg-red-500/10",
-      href: "/financeiro"
-    },
-    { 
-      name: "Quilômetros Rodados", 
-      value: `${totalKmRodados.toLocaleString("pt-BR")} km`, 
-      change: "Total", 
-      trend: "up", 
-      icon: MapPin, 
-      color: "text-orange-500", 
-      bg: "bg-orange-500/10",
-      href: "/manutencoes"
-    },
-  ], [faturamentoTotal, custosTotal, lucroEstimado, totalKmRodados]);
+  const totalLitrosCombustivel = useMemo(() => {
+    return abastecimentos.reduce((acc, curr) => acc + (Number(curr.litros) || 0), 0);
+  }, [abastecimentos]);
 
   return (
     <div className="space-y-6">
@@ -144,31 +104,97 @@ export default function Dashboard() {
             variants={containerVariants}
             initial="hidden"
             animate="show"
-            className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+            className="grid grid-cols-1 md:grid-cols-2 gap-6"
           >
-            {stats.map((stat) => (
-              <Link href={stat.href} key={stat.name} className="block">
-                <motion.div
-                  variants={itemVariants}
-                  whileHover={{ scale: 1.02, translateY: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="flex h-full flex-col overflow-hidden rounded-2xl bg-card p-6 shadow-sm border border-border cursor-pointer hover:border-primary/30 hover:shadow-md transition-all duration-200"
-                >
+            {/* Card 1: Resumo Financeiro */}
+            <Link href="/financeiro" className="block">
+              <motion.div
+                variants={itemVariants}
+                whileHover={{ scale: 1.01, translateY: -2 }}
+                whileTap={{ scale: 0.99 }}
+                className={`flex h-full flex-col justify-between overflow-hidden rounded-2xl bg-card p-6 shadow-sm border border-border border-l-4 cursor-pointer hover:border-primary/30 hover:shadow-md transition-all duration-200 ${
+                  lucroEstimado >= 0 ? "border-l-green-500" : "border-l-red-500"
+                }`}
+              >
+                <div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-muted-foreground">{stat.name}</span>
-                    <div className={`rounded-xl p-2 ${stat.bg}`}>
-                      <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Resumo Financeiro (Mês)</span>
+                    <div className="rounded-xl p-2 bg-primary/10 text-primary">
+                      <DollarSign className="h-5 w-5" />
                     </div>
                   </div>
-                  <div className="mt-4 flex items-baseline gap-2">
-                    <span className="text-3xl font-bold tracking-tight">{stat.value}</span>
-                    <span className={`text-xs font-semibold ${stat.trend === "up" ? "text-green-500" : "text-red-500"}`}>
-                      {stat.change}
-                    </span>
+                  <div className="mt-4">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Lucro Estimado</span>
+                    <p className={`text-3xl sm:text-4xl font-extrabold tracking-tight mt-1 ${
+                      lucroEstimado >= 0 ? "text-green-500" : "text-red-500"
+                    }`}>
+                      R$ {lucroEstimado.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
                   </div>
-                </motion.div>
-              </Link>
-            ))}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-border/80">
+                  <div className="space-y-1">
+                    <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3 text-green-500" /> Faturamento
+                    </span>
+                    <p className="text-base sm:text-lg font-bold text-foreground">
+                      R$ {faturamentoTotal.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider flex items-center gap-1">
+                      <TrendingDown className="h-3 w-3 text-red-500" /> Custos
+                    </span>
+                    <p className="text-base sm:text-lg font-bold text-foreground">
+                      R$ {custosTotal.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            </Link>
+
+            {/* Card 2: Indicadores Operacionais */}
+            <motion.div
+              variants={itemVariants}
+              className="flex h-full flex-col justify-between overflow-hidden rounded-2xl bg-card p-6 shadow-sm border border-border border-l-4 border-l-blue-500"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Indicadores Operacionais (Mês)</span>
+                  <div className="rounded-xl p-2 bg-blue-500/10 text-blue-500">
+                    <Truck className="h-5 w-5" />
+                  </div>
+                </div>
+                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mt-4">
+                  Clique para gerenciar os dados
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <Link href="/manutencoes" className="block">
+                  <div className="bg-muted/40 p-4 rounded-xl border border-border/60 hover:bg-muted hover:border-blue-500/20 active:scale-[0.98] transition-all cursor-pointer">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1">
+                      <MapPin className="h-3 w-3 text-blue-500" /> KM Rodados
+                    </span>
+                    <p className="text-lg sm:text-xl font-extrabold text-foreground mt-1">
+                      {totalKmRodados.toLocaleString("pt-BR")} km
+                    </p>
+                  </div>
+                </Link>
+
+                <Link href="/abastecimentos" className="block">
+                  <div className="bg-muted/40 p-4 rounded-xl border border-border/60 hover:bg-muted hover:border-amber-500/20 active:scale-[0.98] transition-all cursor-pointer">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1">
+                      <Fuel className="h-3 w-3 text-amber-500" /> Combustível
+                    </span>
+                    <p className="text-lg sm:text-xl font-extrabold text-foreground mt-1">
+                      {totalLitrosCombustivel.toLocaleString("pt-BR")} L
+                    </p>
+                  </div>
+                </Link>
+              </div>
+            </motion.div>
           </motion.div>
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
