@@ -1,9 +1,8 @@
 "use client";
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, X, Save, Fuel, Calendar } from "lucide-react";
+import { Plus, X, Save, Fuel, Calendar, Edit2, Trash2 } from "lucide-react";
 import { useCollection } from "@/hooks/useCollection";
 
 type FuelFormData = {
@@ -21,37 +20,78 @@ const initialMockFuel = [
 
 export default function AbastecimentosPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const { data: abastecimentos, loading, addDocument } = useCollection("abastecimentos", initialMockFuel);
+  const [editingFuel, setEditingFuel] = useState<any | null>(null);
+  const { data: abastecimentos, loading, addDocument, updateDocument, deleteDocument } = useCollection("abastecimentos", initialMockFuel);
   const { register, handleSubmit, reset } = useForm<FuelFormData>();
+
+  const handleEdit = (item: any) => {
+    setEditingFuel(item);
+    reset({
+      veiculo: item.veiculo,
+      data: item.data || "",
+      km: Number(item.km) || 0,
+      litros: Number(item.litros) || 0,
+      valor: Number(item.valor) || 0
+    });
+    setIsFormOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm("Deseja realmente excluir este registro de abastecimento?")) {
+      try {
+        await deleteDocument(id);
+        alert("Abastecimento excluído com sucesso!");
+      } catch (error) {
+        console.error("Erro ao excluir abastecimento:", error);
+      }
+    }
+  };
 
   const onSubmit = async (data: FuelFormData) => {
     try {
-      await addDocument({
+      const payload = {
         data: data.data || new Date().toISOString().split("T")[0],
         km: Number(data.km) || 0,
         litros: Number(data.litros) || 0,
         valor: Number(data.valor) || 0,
         veiculo: data.veiculo || "Geral"
-      });
+      };
+
+      if (editingFuel) {
+        await updateDocument(editingFuel.id, payload);
+        alert("Abastecimento atualizado com sucesso!");
+      } else {
+        await addDocument(payload);
+        alert("Abastecimento registrado com sucesso!");
+      }
       setIsFormOpen(false);
+      setEditingFuel(null);
       reset();
-      alert("Abastecimento registrado com sucesso!");
     } catch (error) {
       console.error("Erro ao salvar abastecimento:", error);
       alert("Erro ao salvar o abastecimento.");
     }
   };
 
-
   return (
     <div className="space-y-6 relative h-full">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Abastecimentos</h1>
-          <p className="text-sm text-muted-foreground">Controle de combustível da frota.</p>
+          <p className="text-sm text-muted-foreground">Controle de combustível da frota com edição e exclusão.</p>
         </div>
         <button 
-          onClick={() => setIsFormOpen(true)}
+          onClick={() => {
+            setEditingFuel(null);
+            reset({
+              veiculo: "",
+              data: new Date().toISOString().split("T")[0],
+              km: 0,
+              litros: 0,
+              valor: 0
+            });
+            setIsFormOpen(true);
+          }}
           className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90 transition-opacity"
         >
           <Plus className="h-4 w-4" />
@@ -86,10 +126,26 @@ export default function AbastecimentosPage() {
                   </div>
                 </div>
               </div>
-              <div className="text-left sm:text-right">
+              <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3">
                 <p className="text-xl font-bold text-red-500">
                   R$ {Number(item.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
+                <div className="flex items-center gap-1">
+                  <button 
+                    onClick={() => handleEdit(item)}
+                    className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                    title="Editar Abastecimento"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(item.id)}
+                    className="rounded-lg p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                    title="Excluir Abastecimento"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -111,13 +167,15 @@ export default function AbastecimentosPage() {
               className="fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-[2rem] bg-background shadow-2xl md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:max-w-md md:rounded-2xl"
             >
               <div className="flex items-center justify-between border-b border-border p-6">
-                <h2 className="text-xl font-bold">Registrar Abastecimento</h2>
-                <button onClick={() => setIsFormOpen(false)} className="rounded-full bg-muted p-2">
+                <h2 className="text-xl font-bold">
+                  {editingFuel ? "Editar Abastecimento" : "Registrar Abastecimento"}
+                </h2>
+                <button onClick={() => setIsFormOpen(false)} className="rounded-full bg-muted p-2 hover:bg-border transition-colors">
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <form id="fuel-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-6">
+              <form id="fuel-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-6 bg-background">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Veículo / Identificação</label>
                   <input {...register("veiculo", { required: true })} placeholder="Ex: Guincho 01" className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" />
@@ -152,4 +210,3 @@ export default function AbastecimentosPage() {
     </div>
   );
 }
-

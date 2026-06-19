@@ -1,8 +1,7 @@
 "use client";
-
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Plus, Trash2, CheckSquare, Square, Calendar, Clock } from "lucide-react";
+import { Bell, Plus, Trash2, Edit2, CheckSquare, Square, Calendar, Clock, X, Save } from "lucide-react";
 import { useCollection } from "@/hooks/useCollection";
 
 type Reminder = {
@@ -22,6 +21,11 @@ export default function LembretesPage() {
   const { data: lembretes, loading, addDocument, updateDocument, deleteDocument } = useCollection("lembretes", initialMockReminders);
   const [newText, setNewText] = useState("");
   const [newDate, setNewDate] = useState("");
+  const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
+
+  // States for edit modal inputs
+  const [editText, setEditText] = useState("");
+  const [editDate, setEditDate] = useState("");
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,6 +62,27 @@ export default function LembretesPage() {
     }
   };
 
+  const handleStartEdit = (item: Reminder) => {
+    setEditingReminder(item);
+    setEditText(item.texto);
+    setEditDate(item.data);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingReminder) return;
+
+    try {
+      await updateDocument(editingReminder.id, {
+        texto: editText.trim(),
+        data: editDate
+      });
+      setEditingReminder(null);
+    } catch (error) {
+      console.error("Erro ao salvar lembrete:", error);
+    }
+  };
+
   // Separação de tarefas
   const pendentes = useMemo(() => lembretes.filter(r => !r.feita), [lembretes]);
   const concluidos = useMemo(() => lembretes.filter(r => r.feita), [lembretes]);
@@ -66,9 +91,9 @@ export default function LembretesPage() {
     <div className="space-y-6 max-w-2xl mx-auto pb-12">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <Bell className="h-6 w-6 text-primary animate-swing" /> Lembretes e Tarefas
+          <Bell className="h-6 w-6 text-primary" /> Lembretes e Tarefas
         </h1>
-        <p className="text-sm text-muted-foreground">Monitore os compromissos e tarefas operacionais diárias.</p>
+        <p className="text-sm text-muted-foreground">Monitore compromissos e tarefas operacionais de forma organizada.</p>
       </div>
 
       {/* Formulário superior */}
@@ -127,9 +152,9 @@ export default function LembretesPage() {
                       <div className="flex items-start gap-3 flex-1 min-w-0">
                         <button 
                           onClick={() => handleToggle(item)}
-                          className="text-muted-foreground hover:text-primary transition-colors mt-0.5 cursor-pointer"
+                          className="text-muted-foreground hover:text-primary transition-colors mt-0.5 cursor-pointer shrink-0"
                         >
-                          <Square className="h-5 w-5 shrink-0" />
+                          <Square className="h-5 w-5" />
                         </button>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-foreground break-words">{item.texto}</p>
@@ -138,12 +163,20 @@ export default function LembretesPage() {
                           </span>
                         </div>
                       </div>
-                      <button 
-                        onClick={() => handleDelete(item.id)}
-                        className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="h-4.5 w-4.5 shrink-0" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button 
+                          onClick={() => handleStartEdit(item)}
+                          className="p-2 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Edit2 className="h-4.5 w-4.5" />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(item.id)}
+                          className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="h-4.5 w-4.5" />
+                        </button>
+                      </div>
                     </motion.div>
                   ))
                 )}
@@ -170,9 +203,9 @@ export default function LembretesPage() {
                       <div className="flex items-start gap-3 flex-1 min-w-0">
                         <button 
                           onClick={() => handleToggle(item)}
-                          className="text-green-500 transition-colors mt-0.5 cursor-pointer"
+                          className="text-green-500 transition-colors mt-0.5 cursor-pointer shrink-0"
                         >
-                          <CheckSquare className="h-5 w-5 shrink-0" />
+                          <CheckSquare className="h-5 w-5" />
                         </button>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-muted-foreground line-through break-words">{item.texto}</p>
@@ -181,12 +214,20 @@ export default function LembretesPage() {
                           </span>
                         </div>
                       </div>
-                      <button 
-                        onClick={() => handleDelete(item.id)}
-                        className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="h-4.5 w-4.5 shrink-0" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button 
+                          onClick={() => handleStartEdit(item)}
+                          className="p-2 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Edit2 className="h-4.5 w-4.5" />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(item.id)}
+                          className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="h-4.5 w-4.5" />
+                        </button>
+                      </div>
                     </motion.div>
                   ))}
                 </AnimatePresence>
@@ -195,6 +236,62 @@ export default function LembretesPage() {
           )}
         </div>
       )}
+
+      {/* Modal de Edição */}
+      <AnimatePresence>
+        {editingReminder && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setEditingReminder(null)}
+              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-[2rem] bg-background shadow-2xl overflow-hidden md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:max-w-md md:rounded-2xl"
+            >
+              <div className="flex items-center justify-between border-b border-border p-6 bg-card">
+                <h2 className="text-xl font-bold">Editar Lembrete</h2>
+                <button onClick={() => setEditingReminder(null)} className="rounded-full bg-muted p-2 hover:bg-border transition-colors">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEdit} className="space-y-4 p-6 bg-background">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase">Texto do Lembrete</label>
+                  <input 
+                    type="text" 
+                    value={editText} 
+                    onChange={e => setEditText(e.target.value)} 
+                    required 
+                    className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary" 
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase">Data Limite</label>
+                  <input 
+                    type="date" 
+                    value={editDate} 
+                    onChange={e => setEditDate(e.target.value)} 
+                    className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary" 
+                  />
+                </div>
+
+                <div className="pt-4 flex gap-3">
+                  <button type="button" onClick={() => setEditingReminder(null)} className="flex-1 py-3 text-sm font-semibold text-muted-foreground bg-muted rounded-xl hover:bg-border transition-colors">
+                    Cancelar
+                  </button>
+                  <button type="submit" className="flex-1 py-3 text-sm font-semibold text-primary-foreground bg-primary rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-2">
+                    <Save className="h-4.5 w-4.5" /> Salvar
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

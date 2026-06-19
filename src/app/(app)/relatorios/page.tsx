@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -15,15 +14,17 @@ import {
   ChevronRight,
   Edit2,
   Trash2,
-  X
+  X,
+  ShoppingCart,
+  DollarSign
 } from "lucide-react";
 import { useCollection } from "@/hooks/useCollection";
 
 // Mock data fallbacks
 const initialMockServices = [
-  { id: "s1", cliente: "João Silva", telefone: "(11) 99999-8888", data: "2026-06-18", hora: "14:30", origem: "Centro", destino: "Vila Nova", veiculo: "Honda Civic", placa: "ABC-1234", kmInicial: 100, kmFinal: 125, kmPercorrido: 25, valor: 250, descricao: "Serviço padrão de guincho." },
-  { id: "s2", cliente: "Maria Oliveira", telefone: "(11) 98888-7777", data: "2026-06-17", hora: "10:15", origem: "Aeroporto", destino: "Jardins", veiculo: "Toyota Corolla", placa: "XYZ-9876", kmInicial: 200, kmFinal: 235, kmPercorrido: 35, valor: 380, descricao: "Carro com pane mecânica." },
-  { id: "s3", cliente: "Carlos Souza", telefone: "(11) 97777-6666", data: "2026-05-12", hora: "08:00", origem: "Bairro Alto", destino: "Oficina Central", veiculo: "Fiat Palio", placa: "MNO-4567", kmInicial: 50, kmFinal: 70, kmPercorrido: 20, valor: 180, descricao: "Bateria arriada." }
+  { id: "s1", cliente: "João Silva", telefone: "(11) 99999-8888", data: "2026-06-18", hora: "14:30", origem: "Centro", destino: "Vila Nova", veiculo: "Honda Civic", placa: "ABC-1234", kmInicial: 100, kmFinal: 125, kmPercorrido: 25, valor: 250, descricao: "Serviço padrão de guincho.", fotos: [] },
+  { id: "s2", cliente: "Maria Oliveira", telefone: "(11) 98888-7777", data: "2026-06-17", hora: "10:15", origem: "Aeroporto", destino: "Jardins", veiculo: "Toyota Corolla", placa: "XYZ-9876", kmInicial: 200, kmFinal: 235, kmPercorrido: 35, valor: 380, descricao: "Carro com pane mecânica.", fotos: [] },
+  { id: "s3", cliente: "Carlos Souza", telefone: "(11) 97777-6666", data: "2026-05-12", hora: "08:00", origem: "Bairro Alto", destino: "Oficina Central", veiculo: "Fiat Palio", placa: "MNO-4567", kmInicial: 50, kmFinal: 70, kmPercorrido: 20, valor: 180, descricao: "Bateria arriada.", fotos: [] }
 ];
 const initialMockFuel = [
   { id: "a1", veiculo: "Guincho 01", location: "Posto Ipiranga", data: "2026-06-18", km: 145200, litros: 60, valor: 350 },
@@ -34,38 +35,33 @@ const initialMockMaintenance = [
   { id: "m1", tipo: "Troca de Óleo e Filtros", veiculo: "Guincho 02", data: "2026-06-10", km: 85000, valor: 450, observacoes: "Revisão preventiva" },
   { id: "m2", tipo: "Revisão de Freios", veiculo: "Guincho 01", data: "2026-05-05", km: 144200, valor: 650, observacoes: "Pastilhas e discos trocados" }
 ];
+const initialMockShopping = [
+  { id: "c1", item: "Cabo de aço para Guincho", quantidade: "2 un", comprado: false, preco: 150 },
+  { id: "c2", item: "Óleo hidráulico 68", quantidade: "20 L", comprado: true, preco: 350, compradoEm: "2026-06-18" }
+];
 
 const monthNames: { [key: string]: string } = {
-  "01": "Janeiro",
-  "02": "Fevereiro",
-  "03": "Março",
-  "04": "Abril",
-  "05": "Maio",
-  "06": "Junho",
-  "07": "Julho",
-  "08": "Agosto",
-  "09": "Setembro",
-  "10": "Outubro",
-  "11": "Novembro",
-  "12": "Dezembro"
+  "01": "Janeiro", "02": "Fevereiro", "03": "Março", "04": "Abril", "05": "Maio", "06": "Junho",
+  "07": "Julho", "08": "Agosto", "09": "Setembro", "10": "Outubro", "11": "Novembro", "12": "Dezembro"
 };
 
 export default function RelatoriosPage() {
   const { data: servicos, loading: loadingS, updateDocument: updateS, deleteDocument: deleteS } = useCollection("servicos", initialMockServices);
   const { data: abastecimentos, loading: loadingA, updateDocument: updateA, deleteDocument: deleteA } = useCollection("abastecimentos", initialMockFuel);
   const { data: manutencoes, loading: loadingM, updateDocument: updateM, deleteDocument: deleteM } = useCollection("manutencoes", initialMockMaintenance);
+  const { data: compras, loading: loadingC, updateDocument: updateC, deleteDocument: deleteC } = useCollection("compras", initialMockShopping);
 
-  const loading = loadingS || loadingA || loadingM;
+  const loading = loadingS || loadingA || loadingM || loadingC;
 
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [selectedMonth, setSelectedMonth] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"servicos" | "abastecimentos" | "manutencoes">("servicos");
+  const [activeTab, setActiveTab] = useState<"servicos" | "abastecimentos" | "manutencoes" | "compras">("servicos");
 
   // Estados de edição unificada
   const [editingItem, setEditingItem] = useState<any | null>(null);
-  const [editingType, setEditingType] = useState<"servico" | "abastecimento" | "manutencao" | null>(null);
+  const [editingType, setEditingType] = useState<"servico" | "abastecimento" | "manutencao" | "compra" | null>(null);
 
-  const handleStartEdit = (item: any, type: "servico" | "abastecimento" | "manutencao") => {
+  const handleStartEdit = (item: any, type: "servico" | "abastecimento" | "manutencao" | "compra") => {
     setEditingItem({ ...item });
     setEditingType(type);
   };
@@ -106,6 +102,13 @@ export default function RelatoriosPage() {
           valor: Number(editingItem.valor) || 0,
           observacoes: editingItem.observacoes || ""
         });
+      } else if (editingType === "compra") {
+        await updateC(editingItem.id, {
+          item: editingItem.item || "",
+          quantidade: editingItem.quantidade || "",
+          preco: Number(editingItem.preco) || 0,
+          compradoEm: editingItem.compradoEm || ""
+        });
       }
       alert("Registro atualizado com sucesso!");
       setEditingItem(null);
@@ -116,8 +119,15 @@ export default function RelatoriosPage() {
     }
   };
 
-  const handleDeleteItem = async (id: string, type: "servico" | "abastecimento" | "manutencao") => {
-    const label = type === "servico" ? "serviço" : type === "abastecimento" ? "abastecimento" : "registro de manutenção";
+  const handleDeleteItem = async (id: string, type: "servico" | "abastecimento" | "manutencao" | "compra") => {
+    const label = type === "servico" 
+      ? "serviço" 
+      : type === "abastecimento" 
+      ? "abastecimento" 
+      : type === "manutencao" 
+      ? "registro de manutenção" 
+      : "item de compra";
+      
     if (window.confirm(`Tem certeza de que deseja excluir este ${label}?`)) {
       try {
         if (type === "servico") {
@@ -126,6 +136,8 @@ export default function RelatoriosPage() {
           await deleteA(id);
         } else if (type === "manutencao") {
           await deleteM(id);
+        } else if (type === "compra") {
+          await deleteC(id);
         }
         alert("Registro excluído com sucesso!");
       } catch (error) {
@@ -143,6 +155,9 @@ export default function RelatoriosPage() {
           servicos: any[];
           abastecimentos: any[];
           manutencoes: any[];
+          compras: any[];
+          faturamentoOriginal: number;
+          faturamentoDesconto: number;
           faturamento: number;
           despesasCombustivel: number;
           despesasManutencao: number;
@@ -169,6 +184,9 @@ export default function RelatoriosPage() {
           servicos: [],
           abastecimentos: [],
           manutencoes: [],
+          compras: [],
+          faturamentoOriginal: 0,
+          faturamentoDesconto: 0,
           faturamento: 0,
           despesasCombustivel: 0,
           despesasManutencao: 0,
@@ -184,7 +202,7 @@ export default function RelatoriosPage() {
       ensurePath(year, month);
       const group = groups[year][month];
       group.servicos.push(s);
-      group.faturamento += Number(s.valor) || 0;
+      group.faturamentoOriginal += Number(s.valor) || 0;
       group.kmPercorrido += Number(s.kmPercorrido) || 0;
     });
 
@@ -205,28 +223,37 @@ export default function RelatoriosPage() {
       group.despesasManutencao += Number(m.valor) || 0;
     });
 
+    compras.forEach(c => {
+      if (c.comprado && c.compradoEm) {
+        const { year, month } = getYearMonth(c.compradoEm);
+        ensurePath(year, month);
+        const group = groups[year][month];
+        group.compras.push(c);
+        group.faturamentoDesconto += Number(c.preco) || 0;
+      }
+    });
+
     Object.keys(groups).forEach(year => {
       Object.keys(groups[year]).forEach(month => {
         const group = groups[year][month];
+        // Faturamento líquido deduzido de compras efetuadas
+        group.faturamento = Math.max(group.faturamentoOriginal - group.faturamentoDesconto, 0);
         group.lucroLiquido = group.faturamento - (group.despesasCombustivel + group.despesasManutencao);
       });
     });
 
     return groups;
-  }, [servicos, abastecimentos, manutencoes]);
+  }, [servicos, abastecimentos, manutencoes, compras]);
 
-  // Lista ordenada de anos disponíveis
   const years = useMemo(() => {
     return Object.keys(reportsData).sort((a, b) => b.localeCompare(a));
   }, [reportsData]);
 
-  // Lista ordenada de meses disponíveis para o ano selecionado
   const months = useMemo(() => {
     if (!selectedYear || !reportsData[selectedYear]) return [];
     return Object.keys(reportsData[selectedYear]).sort((a, b) => b.localeCompare(a));
   }, [reportsData, selectedYear]);
 
-  // Selecionar valores iniciais padrão assim que os dados carregarem
   useEffect(() => {
     if (years.length > 0 && !selectedYear) {
       setSelectedYear(years[0]);
@@ -239,7 +266,6 @@ export default function RelatoriosPage() {
     }
   }, [selectedYear, months, selectedMonth]);
 
-  // Resumo anual para o ano selecionado
   const annualStats = useMemo(() => {
     if (!selectedYear || !reportsData[selectedYear]) {
       return { faturamento: 0, despesas: 0, lucro: 0 };
@@ -258,7 +284,6 @@ export default function RelatoriosPage() {
     };
   }, [reportsData, selectedYear]);
 
-  // Dados do mês selecionado
   const activeMonthData = useMemo(() => {
     if (!selectedYear || !selectedMonth || !reportsData[selectedYear]?.[selectedMonth]) {
       return null;
@@ -272,7 +297,7 @@ export default function RelatoriosPage() {
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
           <BarChart3 className="h-6 w-6 text-primary" /> Relatórios Operacionais
         </h1>
-        <p className="text-sm text-muted-foreground">Histórico financeiro e operacional agrupado por ano e mês.</p>
+        <p className="text-sm text-muted-foreground">Histórico financeiro e operacional agrupado com deduções automáticas.</p>
       </div>
 
       {loading ? (
@@ -283,16 +308,13 @@ export default function RelatoriosPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          
-          {/* Seletor Lateral (Ano / Mês) */}
+          {/* Filtros */}
           <div className="lg:col-span-4 space-y-4">
             <div className="rounded-2xl bg-card p-5 border border-border shadow-sm">
               <h2 className="font-semibold text-base mb-3 flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" /> Filtro Temporal
               </h2>
-
               <div className="space-y-4">
-                {/* Seleção do Ano */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Ano</label>
                   <div className="flex flex-wrap gap-2">
@@ -301,7 +323,7 @@ export default function RelatoriosPage() {
                         key={y}
                         onClick={() => {
                           setSelectedYear(y);
-                          setSelectedMonth(""); // Reseta o mês ao trocar o ano
+                          setSelectedMonth("");
                         }}
                         className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${
                           selectedYear === y 
@@ -315,7 +337,6 @@ export default function RelatoriosPage() {
                   </div>
                 </div>
 
-                {/* Seleção do Mês */}
                 {selectedYear && (
                   <div className="space-y-1.5 pt-2 border-t border-border">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Mês</label>
@@ -340,7 +361,7 @@ export default function RelatoriosPage() {
               </div>
             </div>
 
-            {/* Resumo Anual (Discreto) */}
+            {/* Resumo Anual */}
             {selectedYear && (
               <div className="rounded-2xl bg-muted/40 p-5 border border-border/80">
                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
@@ -348,7 +369,7 @@ export default function RelatoriosPage() {
                 </h3>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">Faturamento:</span>
+                    <span className="text-muted-foreground">Faturamento Líquido:</span>
                     <span className="font-semibold text-foreground">
                       R$ {annualStats.faturamento.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </span>
@@ -370,16 +391,13 @@ export default function RelatoriosPage() {
             )}
           </div>
 
-          {/* Painel de Dados Detalhados do Mês */}
+          {/* Painel Detalhado */}
           <div className="lg:col-span-8 space-y-6">
             <AnimatePresence mode="wait">
               {activeMonthData ? (
                 <motion.div
                   key={`${selectedYear}-${selectedMonth}`}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                   className="space-y-6"
                 >
                   <div className="bg-card rounded-2xl p-6 border border-border shadow-sm space-y-6">
@@ -387,110 +405,89 @@ export default function RelatoriosPage() {
                       <h2 className="text-xl font-bold">
                         Dados de {monthNames[selectedMonth] || selectedMonth} de {selectedYear}
                       </h2>
-                      <p className="text-xs text-muted-foreground mt-1">Estatísticas detalhadas consolidadas do período.</p>
+                      <p className="text-xs text-muted-foreground mt-1">Visão consolidada com abatimento de compras de R$ {activeMonthData.faturamentoDesconto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
                     </div>
 
-                    {/* KPI Grid */}
+                    {/* KPIs */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       <div className="bg-muted/30 p-4 rounded-xl border border-border/60">
-                        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground block">
-                          Receitas
-                        </span>
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground block">Faturamento Líquido</span>
                         <span className="text-base sm:text-lg font-bold text-green-500 mt-1 block">
-                          R$ {activeMonthData.faturamento.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          R$ {activeMonthData.faturamento.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
                         </span>
                       </div>
-                      
                       <div className="bg-muted/30 p-4 rounded-xl border border-border/60">
-                        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground block">
-                          Combustível
-                        </span>
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground block">Combustível</span>
                         <span className="text-base sm:text-lg font-bold text-red-500 mt-1 block">
-                          R$ {activeMonthData.despesasCombustivel.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          R$ {activeMonthData.despesasCombustivel.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
                         </span>
                       </div>
-
                       <div className="bg-muted/30 p-4 rounded-xl border border-border/60">
-                        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground block">
-                          Manutenção
-                        </span>
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground block">Manutenção</span>
                         <span className="text-base sm:text-lg font-bold text-red-500 mt-1 block">
-                          R$ {activeMonthData.despesasManutencao.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          R$ {activeMonthData.despesasManutencao.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
                         </span>
                       </div>
-
-                      <div className={`p-4 rounded-xl border ${
-                        activeMonthData.lucroLiquido >= 0 
-                          ? "bg-green-500/5 border-green-500/10" 
-                          : "bg-red-500/5 border-red-500/10"
-                      }`}>
-                        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground block">
-                          Lucro Líquido
-                        </span>
-                        <span className={`text-base sm:text-lg font-bold mt-1 block ${
-                          activeMonthData.lucroLiquido >= 0 ? "text-green-600" : "text-red-500"
-                        }`}>
-                          R$ {activeMonthData.lucroLiquido.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      <div className={`p-4 rounded-xl border ${activeMonthData.lucroLiquido >= 0 ? "bg-green-500/5 border-green-500/10" : "bg-red-500/5 border-red-500/10"}`}>
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground block">Lucro Líquido</span>
+                        <span className={`text-base sm:text-lg font-bold mt-1 block ${activeMonthData.lucroLiquido >= 0 ? "text-green-600" : "text-red-500"}`}>
+                          R$ {activeMonthData.lucroLiquido.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
                         </span>
                       </div>
                     </div>
 
-                    {/* KMs e Litragem */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-border">
                       <div className="flex items-center gap-3">
-                        <div className="rounded-full bg-primary/10 p-2.5 text-primary">
-                          <MapPin className="h-5 w-5" />
-                        </div>
+                        <div className="rounded-full bg-primary/10 p-2.5 text-primary"><MapPin className="h-5 w-5" /></div>
                         <div>
                           <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Distância Rodada</p>
                           <p className="text-base font-bold text-foreground mt-0.5">{activeMonthData.kmPercorrido.toLocaleString("pt-BR")} km</p>
                         </div>
                       </div>
-
                       <div className="flex items-center gap-3">
-                        <div className="rounded-full bg-amber-500/10 p-2.5 text-amber-500">
-                          <Fuel className="h-5 w-5" />
-                        </div>
+                        <div className="rounded-full bg-amber-500/10 p-2.5 text-amber-500"><Fuel className="h-5 w-5" /></div>
                         <div>
                           <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Litragem Consumida</p>
-                          <p className="text-base font-bold text-foreground mt-0.5">{(activeMonthData.litrosAbastecidos || 0).toLocaleString("pt-BR")} Litros</p>
+                          <p className="text-base font-bold text-foreground mt-0.5">{activeMonthData.litrosAbastecidos.toLocaleString("pt-BR")} Litros</p>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Listagem das Transações do Mês */}
+                  {/* Tabs */}
                   <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-                    <div className="flex border-b border-border bg-muted/20">
+                    <div className="flex border-b border-border bg-muted/20 overflow-x-auto">
                       <button
                         onClick={() => setActiveTab("servicos")}
-                        className={`flex-1 py-3.5 text-sm font-semibold border-b-2 transition-all flex items-center justify-center gap-2 ${
-                          activeTab === "servicos" 
-                            ? "border-primary text-primary bg-card" 
-                            : "border-transparent text-muted-foreground hover:text-foreground"
+                        className={`flex-1 py-3.5 text-xs sm:text-sm font-semibold border-b-2 transition-all flex items-center justify-center gap-2 min-w-[100px] ${
+                          activeTab === "servicos" ? "border-primary text-primary bg-card" : "border-transparent text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         <Truck className="h-4 w-4" /> Serviços ({activeMonthData.servicos.length})
                       </button>
                       <button
                         onClick={() => setActiveTab("abastecimentos")}
-                        className={`flex-1 py-3.5 text-sm font-semibold border-b-2 transition-all flex items-center justify-center gap-2 ${
-                          activeTab === "abastecimentos" 
-                            ? "border-primary text-primary bg-card" 
-                            : "border-transparent text-muted-foreground hover:text-foreground"
+                        className={`flex-1 py-3.5 text-xs sm:text-sm font-semibold border-b-2 transition-all flex items-center justify-center gap-2 min-w-[120px] ${
+                          activeTab === "abastecimentos" ? "border-primary text-primary bg-card" : "border-transparent text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         <Fuel className="h-4 w-4" /> Combustível ({activeMonthData.abastecimentos.length})
                       </button>
                       <button
                         onClick={() => setActiveTab("manutencoes")}
-                        className={`flex-1 py-3.5 text-sm font-semibold border-b-2 transition-all flex items-center justify-center gap-2 ${
-                          activeTab === "manutencoes" 
-                            ? "border-primary text-primary bg-card" 
-                            : "border-transparent text-muted-foreground hover:text-foreground"
+                        className={`flex-1 py-3.5 text-xs sm:text-sm font-semibold border-b-2 transition-all flex items-center justify-center gap-2 min-w-[120px] ${
+                          activeTab === "manutencoes" ? "border-primary text-primary bg-card" : "border-transparent text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         <Wrench className="h-4 w-4" /> Manutenções ({activeMonthData.manutencoes.length})
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("compras")}
+                        className={`flex-1 py-3.5 text-xs sm:text-sm font-semibold border-b-2 transition-all flex items-center justify-center gap-2 min-w-[100px] ${
+                          activeTab === "compras" ? "border-primary text-primary bg-card" : "border-transparent text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <ShoppingCart className="h-4 w-4" /> Compras ({activeMonthData.compras.length})
                       </button>
                     </div>
 
@@ -525,7 +522,7 @@ export default function RelatoriosPage() {
                             <div key={a.id || index} className="p-4 flex justify-between items-center text-sm hover:bg-muted/20 gap-4">
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-foreground truncate">{a.veiculo || "Geral"}</p>
-                                <p className="text-xs text-muted-foreground mt-0.5 truncate">{a.litros} Litros | KM: {(Number(a.km) || 0).toLocaleString("pt-BR")} | {a.data}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5 truncate">{a.litros} Litros | KM: {Number(a.km || 0).toLocaleString("pt-BR")} | {a.data}</p>
                               </div>
                               <div className="flex items-center gap-3 shrink-0">
                                 <span className="font-bold text-red-500">R$ {Number(a.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
@@ -547,13 +544,35 @@ export default function RelatoriosPage() {
                             <div key={m.id || index} className="p-4 flex justify-between items-center text-sm hover:bg-muted/20 gap-4">
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-foreground truncate">{m.tipo} ({m.veiculo})</p>
-                                <p className="text-xs text-muted-foreground mt-0.5 truncate">KM: {(Number(m.km) || 0).toLocaleString("pt-BR")} | {m.data}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5 truncate">KM: {Number(m.km || 0).toLocaleString("pt-BR")} | {m.data}</p>
                               </div>
                               <div className="flex items-center gap-3 shrink-0">
                                 <span className="font-bold text-red-500">R$ {Number(m.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                                 <div className="flex gap-1">
                                   <button onClick={() => handleStartEdit(m, "manutencao")} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded transition-colors cursor-pointer" title="Editar"><Edit2 className="h-3.5 w-3.5" /></button>
                                   <button onClick={() => handleDeleteItem(m.id, "manutencao")} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )
+                      )}
+
+                      {activeTab === "compras" && (
+                        activeMonthData.compras.length === 0 ? (
+                          <div className="p-8 text-center text-sm text-muted-foreground">Nenhuma compra finalizada neste mês.</div>
+                        ) : (
+                          activeMonthData.compras.map((c, index) => (
+                            <div key={c.id || index} className="p-4 flex justify-between items-center text-sm hover:bg-muted/20 gap-4">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-foreground truncate">{c.item} ({c.quantidade})</p>
+                                <p className="text-xs text-muted-foreground mt-0.5 truncate">Comprado em: {c.compradoEm}</p>
+                              </div>
+                              <div className="flex items-center gap-3 shrink-0">
+                                <span className="font-bold text-amber-600 dark:text-amber-400">R$ {Number(c.preco || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                                <div className="flex gap-1">
+                                  <button onClick={() => handleStartEdit(c, "compra")} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded transition-colors cursor-pointer" title="Editar"><Edit2 className="h-3.5 w-3.5" /></button>
+                                  <button onClick={() => handleDeleteItem(c.id, "compra")} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
                                 </div>
                               </div>
                             </div>
@@ -570,7 +589,6 @@ export default function RelatoriosPage() {
               )}
             </AnimatePresence>
           </div>
-
         </div>
       )}
 
@@ -590,9 +608,9 @@ export default function RelatoriosPage() {
             >
               <div className="flex items-center justify-between border-b border-border p-6 bg-card">
                 <h2 className="text-xl font-bold">
-                  Editar {editingType === 'servico' ? 'Serviço' : editingType === 'abastecimento' ? 'Abastecimento' : 'Manutenção'}
+                  Editar {editingType === 'servico' ? 'Serviço' : editingType === 'abastecimento' ? 'Abastecimento' : editingType === 'manutencao' ? 'Manutenção' : 'Compra'}
                 </h2>
-                <button onClick={() => { setEditingItem(null); setEditingType(null); }} className="rounded-full bg-muted p-2">
+                <button onClick={() => { setEditingItem(null); setEditingType(null); }} className="rounded-full bg-muted p-2 hover:bg-border transition-colors cursor-pointer">
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -683,6 +701,29 @@ export default function RelatoriosPage() {
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-muted-foreground uppercase">Valor</label>
                       <input type="number" step="0.01" value={editingItem.valor || 0} onChange={e => setEditingItem({ ...editingItem, valor: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary font-bold text-red-500" />
+                    </div>
+                  </>
+                )}
+
+                {editingType === "compra" && (
+                  <>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-muted-foreground uppercase">Nome do Item</label>
+                      <input type="text" value={editingItem.item || ""} onChange={e => setEditingItem({ ...editingItem, item: e.target.value })} required className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-muted-foreground uppercase">Quantidade</label>
+                      <input type="text" value={editingItem.quantidade || ""} onChange={e => setEditingItem({ ...editingItem, quantidade: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">Preço (R$)</label>
+                        <input type="number" step="0.01" value={editingItem.preco || 0} onChange={e => setEditingItem({ ...editingItem, preco: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary font-bold text-amber-600" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">Data da Compra</label>
+                        <input type="date" value={editingItem.compradoEm || ""} onChange={e => setEditingItem({ ...editingItem, compradoEm: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                      </div>
                     </div>
                   </>
                 )}

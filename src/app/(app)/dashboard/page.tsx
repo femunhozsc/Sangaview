@@ -1,5 +1,4 @@
 "use client";
-
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -10,7 +9,13 @@ import {
   MapPin, 
   Wrench, 
   DollarSign,
-  Fuel
+  Fuel,
+  Bell,
+  ShoppingCart,
+  Square,
+  Check,
+  ListTodo,
+  ShoppingBag
 } from "lucide-react";
 import { useCollection } from "@/hooks/useCollection";
 
@@ -29,7 +34,7 @@ const itemVariants = {
   show: { y: 0, opacity: 1, transition: { type: "spring" as const, stiffness: 300, damping: 24 } }
 };
 
-// Mock data fallbacks
+// Fallbacks
 const initialMockServices = [
   { id: "s1", cliente: "João Silva", veiculo: "Honda Civic", valor: 250, data: "2026-06-18", origem: "Centro", destino: "Vila Nova", kmPercorrido: 25 },
   { id: "s2", cliente: "Maria Oliveira", veiculo: "Toyota Corolla", valor: 380, data: "2026-06-17", origem: "Aeroporto", destino: "Jardins", kmPercorrido: 35 }
@@ -41,19 +46,38 @@ const initialMockFuel = [
 const initialMockMaintenance = [
   { id: "m1", tipo: "Troca de Óleo e Filtros", veiculo: "Guincho 02", valor: 450, data: "2026-06-10", km: 85000 }
 ];
+const initialMockShopping = [
+  { id: "c1", item: "Cabo de aço para Guincho", quantidade: "2 un", comprado: false, preco: 150 },
+  { id: "c2", item: "Óleo hidráulico 68", quantidade: "20 L", comprado: true, preco: 350, compradoEm: "2026-06-18" }
+];
+const initialMockReminders = [
+  { id: "r1", texto: "Revisar óleo do Guincho 01", feita: false, data: "2026-06-19" },
+  { id: "r2", texto: "Cobrar faturamento do cliente João Silva", feita: true, data: "2026-06-18" }
+];
 
 export default function Dashboard() {
   const { data: servicos, loading: loadingS } = useCollection("servicos", initialMockServices);
   const { data: abastecimentos, loading: loadingA } = useCollection("abastecimentos", initialMockFuel);
   const { data: manutencoes, loading: loadingM } = useCollection("manutencoes", initialMockMaintenance);
+  const { data: compras, updateDocument: updateCompra } = useCollection("compras", initialMockShopping);
+  const { data: lembretes, updateDocument: updateLembrete } = useCollection("lembretes", initialMockReminders);
 
   const loading = loadingS || loadingA || loadingM;
 
-  // Calcula estatísticas
-  const faturamentoTotal = useMemo(() => {
-    return servicos.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
-  }, [servicos]);
+  // Preço total das compras marcadas como concluídas
+  const totalComprasCompradas = useMemo(() => {
+    return compras
+      .filter(c => c.comprado)
+      .reduce((acc, curr) => acc + (Number(curr.preco) || 0), 0);
+  }, [compras]);
 
+  // Faturamento = Serviços - Compras Finalizadas
+  const faturamentoTotal = useMemo(() => {
+    const totalServicos = servicos.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
+    return Math.max(totalServicos - totalComprasCompradas, 0);
+  }, [servicos, totalComprasCompradas]);
+
+  // Custos = Abastecimento + Manutenção
   const custosTotal = useMemo(() => {
     const totalCombustivel = abastecimentos.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
     const totalManut = manutencoes.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
@@ -66,40 +90,50 @@ export default function Dashboard() {
     return servicos.reduce((acc, curr) => acc + (Number(curr.kmPercorrido) || 0), 0);
   }, [servicos]);
 
-  const totalCombustivelMes = useMemo(() => {
-    return abastecimentos.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
-  }, [abastecimentos]);
-
-  // Lista os 3 últimos serviços cadastrados
-  const ultimosServicos = useMemo(() => {
-    return servicos.slice(0, 3);
-  }, [servicos]);
-
-  // Lista os 3 últimos abastecimentos cadastrados
-  const ultimosAbastecimentos = useMemo(() => {
-    return abastecimentos.slice(0, 3);
-  }, [abastecimentos]);
-
-  // Lista as 2 últimas manutenções cadastradas
-  const ultimasManutencoes = useMemo(() => {
-    return manutencoes.slice(0, 2);
-  }, [manutencoes]);
-
   const totalLitrosCombustivel = useMemo(() => {
     return abastecimentos.reduce((acc, curr) => acc + (Number(curr.litros) || 0), 0);
   }, [abastecimentos]);
 
+  // Filtros rápidos de pendências para o widget do Dashboard
+  const lembretesPendentes = useMemo(() => {
+    return lembretes.filter(r => !r.feita).slice(0, 5);
+  }, [lembretes]);
+
+  const comprasPendentes = useMemo(() => {
+    return compras.filter(c => !c.comprado).slice(0, 5);
+  }, [compras]);
+
+  const handleToggleLembrete = async (id: string) => {
+    try {
+      await updateLembrete(id, { feita: true });
+    } catch (err) {
+      console.error("Erro ao concluir lembrete:", err);
+    }
+  };
+
+  const handleToggleCompra = async (item: any) => {
+    try {
+      await updateCompra(item.id, { 
+        comprado: true,
+        compradoEm: new Date().toISOString().split("T")[0]
+      });
+    } catch (err) {
+      console.error("Erro ao comprar item:", err);
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Resumo das operações da Sanga Auto Socorro.</p>
+        <p className="text-muted-foreground">Resumo e gestão das operações da Sanga Auto Socorro.</p>
       </div>
 
       {loading ? (
         <div className="text-center py-12 text-muted-foreground">Carregando painel...</div>
       ) : (
         <>
+          {/* Resumos Financeiros e Operacionais */}
           <motion.div 
             variants={containerVariants}
             initial="hidden"
@@ -136,7 +170,7 @@ export default function Dashboard() {
                 <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-border/80">
                   <div className="space-y-1">
                     <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3 text-green-500" /> Faturamento
+                      <TrendingUp className="h-3 w-3 text-green-500" /> Faturamento (-Compras)
                     </span>
                     <p className="text-base sm:text-lg font-bold text-foreground">
                       R$ {faturamentoTotal.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
@@ -167,7 +201,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mt-4">
-                  Clique para gerenciar os dados
+                  Clique nos cards abaixo para visualizar histórico
                 </p>
               </div>
 
@@ -197,6 +231,91 @@ export default function Dashboard() {
             </motion.div>
           </motion.div>
 
+          {/* CARD GRANDE: WIDGET INTEGRADO DE LEMBRETES E COMPRAS */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="rounded-2xl bg-card p-6 shadow-sm border border-border"
+          >
+            <h2 className="text-lg font-bold flex items-center gap-2 mb-1">
+              <ListTodo className="h-5 w-5 text-primary" /> Painel de Pendências Rápidas
+            </h2>
+            <p className="text-xs text-muted-foreground mb-6">Conclua lembretes ou registre compras diretamente da tela inicial.</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 divide-y md:divide-y-0 md:divide-x divide-border">
+              {/* Coluna Lembretes */}
+              <div className="space-y-4 pb-6 md:pb-0">
+                <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+                  <span className="flex items-center gap-1.5"><Bell className="h-4 w-4 text-primary" /> Lembretes Pendentes</span>
+                  <Link href="/lembretes" className="text-xs text-blue-500 font-semibold hover:underline">Ver todos</Link>
+                </h3>
+
+                {lembretesPendentes.length === 0 ? (
+                  <div className="text-center py-6 text-xs text-muted-foreground bg-muted/20 border border-dashed border-border rounded-xl">
+                    Nenhum lembrete pendente no momento!
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {lembretesPendentes.map((item) => (
+                      <div key={item.id} className="flex items-start gap-3 p-3 rounded-xl bg-muted/30 border border-border/60 hover:bg-muted/50 transition-colors">
+                        <button 
+                          onClick={() => handleToggleLembrete(item.id)}
+                          className="text-muted-foreground hover:text-primary mt-0.5 shrink-0 cursor-pointer"
+                        >
+                          <Square className="h-4.5 w-4.5" />
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-semibold text-foreground truncate">{item.texto}</p>
+                          <span className="text-[9px] text-muted-foreground block mt-0.5">Prazo: {item.data}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Coluna Lista de Compras */}
+              <div className="space-y-4 pt-6 md:pt-0 md:pl-6">
+                <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+                  <span className="flex items-center gap-1.5"><ShoppingCart className="h-4 w-4 text-amber-500" /> Lista de Compras</span>
+                  <Link href="/lista-compras" className="text-xs text-blue-500 font-semibold hover:underline">Ver todos</Link>
+                </h3>
+
+                {comprasPendentes.length === 0 ? (
+                  <div className="text-center py-6 text-xs text-muted-foreground bg-muted/20 border border-dashed border-border rounded-xl">
+                    Nenhum item pendente para comprar!
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {comprasPendentes.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/60 hover:bg-muted/50 transition-colors gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <button 
+                            onClick={() => handleToggleCompra(item)}
+                            className="h-5 w-5 rounded-full border-2 border-border hover:border-primary flex items-center justify-center text-transparent hover:text-muted-foreground/30 shrink-0 cursor-pointer"
+                          >
+                            <Check className="h-3 w-3" />
+                          </button>
+                          <p className="text-xs font-semibold text-foreground truncate">{item.item}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-medium">{item.quantidade}</span>
+                          {item.preco !== undefined && item.preco > 0 && (
+                            <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                              R$ {item.preco}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Listas adicionais de histórico de serviços */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {/* Últimos Serviços */}
             <motion.div 
@@ -216,21 +335,21 @@ export default function Dashboard() {
                   </Link>
                 </div>
                 
-                {ultimosServicos.length === 0 ? (
+                {servicos.length === 0 ? (
                   <div className="text-center py-8 text-xs text-muted-foreground">Nenhum serviço recente.</div>
                 ) : (
                   <div className="space-y-4">
-                    {ultimosServicos.map((servico) => (
+                    {servicos.slice(0, 3).map((servico) => (
                       <div key={servico.id} className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0">
-                        <div>
-                          <p className="font-medium text-sm text-ellipsis overflow-hidden max-w-[150px] whitespace-nowrap">
+                        <div className="min-w-0 flex-1 mr-2">
+                          <p className="font-medium text-sm truncate">
                             {servico.cliente}
                           </p>
-                          <p className="text-xs text-muted-foreground text-ellipsis overflow-hidden max-w-[150px] whitespace-nowrap">
+                          <p className="text-xs text-muted-foreground truncate">
                             {servico.origem} → {servico.destino}
                           </p>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right shrink-0">
                           <p className="font-semibold text-sm text-green-500">R$ {Number(servico.valor).toLocaleString("pt-BR")}</p>
                           <p className="text-[10px] text-muted-foreground">{servico.data}</p>
                         </div>
@@ -263,21 +382,21 @@ export default function Dashboard() {
                 <div className="mb-4 rounded-xl bg-amber-500/10 p-3 border border-amber-500/20">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Total do Mês</p>
                   <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                    R$ {totalCombustivelMes.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    R$ {custosTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
 
-                {ultimosAbastecimentos.length === 0 ? (
+                {abastecimentos.length === 0 ? (
                   <div className="text-center py-8 text-xs text-muted-foreground">Nenhum abastecimento recente.</div>
                 ) : (
                   <div className="space-y-4">
-                    {ultimosAbastecimentos.map((item) => (
+                    {abastecimentos.slice(0, 3).map((item) => (
                       <div key={item.id} className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0">
-                        <div>
-                          <p className="font-medium text-sm">{item.veiculo}</p>
+                        <div className="min-w-0 flex-1 mr-2">
+                          <p className="font-medium text-sm truncate">{item.veiculo}</p>
                           <p className="text-xs text-muted-foreground">{item.litros} Litros</p>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right shrink-0">
                           <p className="font-semibold text-sm text-foreground">R$ {Number(item.valor).toLocaleString("pt-BR")}</p>
                           <p className="text-[10px] text-muted-foreground">{item.data}</p>
                         </div>
@@ -306,11 +425,11 @@ export default function Dashboard() {
                   </Link>
                 </div>
                 
-                {ultimasManutencoes.length === 0 ? (
+                {manutencoes.length === 0 ? (
                   <div className="text-center py-8 text-xs text-muted-foreground">Nenhuma manutenção recente.</div>
                 ) : (
                   <div className="space-y-4">
-                    {ultimasManutencoes.map((item, idx) => (
+                    {manutencoes.slice(0, 2).map((item, idx) => (
                       <div 
                         key={item.id} 
                         className={`flex items-start gap-4 rounded-xl p-4 border ${
@@ -319,14 +438,14 @@ export default function Dashboard() {
                             : "bg-muted border-border"
                         }`}
                       >
-                        <div className={`rounded-full p-2 text-white ${idx === 0 ? "bg-orange-500" : "bg-muted-foreground/40"}`}>
+                        <div className={`rounded-full p-2 text-white shrink-0 ${idx === 0 ? "bg-orange-500" : "bg-muted-foreground/40"}`}>
                           <Wrench className="h-4 w-4" />
                         </div>
-                        <div>
-                          <p className={`font-semibold text-sm ${idx === 0 ? "text-orange-600 dark:text-orange-400" : "text-foreground"}`}>
+                        <div className="min-w-0 flex-1">
+                          <p className={`font-semibold text-sm truncate ${idx === 0 ? "text-orange-600 dark:text-orange-400" : "text-foreground"}`}>
                             {item.tipo} - {item.veiculo}
                           </p>
-                          <p className="text-xs text-muted-foreground mt-1">KM: {item.km?.toLocaleString("pt-BR")} | Realizado em {item.data}</p>
+                          <p className="text-xs text-muted-foreground mt-1 truncate">KM: {item.km?.toLocaleString("pt-BR")} | {item.data}</p>
                         </div>
                       </div>
                     ))}
@@ -340,5 +459,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
-
