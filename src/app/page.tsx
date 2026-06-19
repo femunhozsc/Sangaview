@@ -8,10 +8,10 @@ export default function SplashScreen() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redireciona para o dashboard após 3 segundos
+    // Redireciona para o dashboard após 1.5 segundos
     const timer = setTimeout(() => {
       router.push("/dashboard");
-    }, 3000);
+    }, 1500);
 
     return () => clearTimeout(timer);
   }, [router]);
@@ -39,15 +39,20 @@ export default function SplashScreen() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1, duration: 0.8 }}
-        className="flex flex-col items-center gap-1.5"
+        transition={{ delay: 0.5, duration: 0.6 }}
+        className="flex flex-col items-center gap-2.5 select-none"
       >
-        <span className="text-[10px] uppercase tracking-[0.2em] text-white/40">Desenvolvido por</span>
-        <img 
-          src="/clearview-logo.png" 
-          alt="Clearview Logo" 
-          className="h-6 object-contain opacity-80" 
-        />
+        <span className="text-[10px] text-white/30 tracking-wide font-medium">
+          © {new Date().getFullYear()} Sanga View. Todos os direitos reservados.
+        </span>
+        <div className="flex items-center gap-1.5 opacity-60">
+          <span className="text-[9px] uppercase tracking-[0.15em] text-white/50">powered by</span>
+          <img 
+            src="/clearview-logo.png" 
+            alt="Clearview Logo" 
+            className="h-5 object-contain" 
+          />
+        </div>
       </motion.div>
     </div>
   );

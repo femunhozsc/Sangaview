@@ -197,11 +197,11 @@ export default function ServicosPage() {
         currentY += 4;
         doc.setFont("Helvetica", "bold");
         doc.setFontSize(11);
-        doc.setTextColor(197, 160, 89); // Dourado
+        doc.setTextColor(51, 51, 51); // Grafite
         doc.text(title.toUpperCase(), 20, currentY);
         
         currentY += 2;
-        doc.setDrawColor(197, 160, 89);
+        doc.setDrawColor(51, 51, 51); // Grafite
         doc.setLineWidth(0.4);
         doc.line(20, currentY, 190, currentY);
         currentY += 6;

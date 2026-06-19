@@ -14,13 +14,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Sanga Auto Socorro",
+  title: "Sanga View",
   description: "Sistema de gestão para serviços de guincho.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Sanga",
+    title: "Sanga View",
   },
 };
 

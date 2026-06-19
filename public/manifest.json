@@ -1,6 +1,6 @@
 {
-  "name": "Sanga Auto Socorro",
-  "short_name": "Sanga",
+  "name": "Sanga View",
+  "short_name": "Sanga View",
   "description": "Sistema de gestão para serviços de guincho Sanga Auto Socorro.",
   "start_url": "/dashboard",
   "scope": "/",
@@ -10,13 +10,13 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/Sanga-Logo.png",
+      "src": "/sanga-pwa-icon.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/Sanga-Logo.png",
+      "src": "/sanga-pwa-icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
