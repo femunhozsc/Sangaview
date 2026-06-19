@@ -21,7 +21,8 @@ import {
   Phone,
   DollarSign,
   Fuel,
-  Coins
+  Coins,
+  Download
 } from "lucide-react";
 import { useCollection } from "@/hooks/useCollection";
 
@@ -90,6 +91,23 @@ const compressImage = (file: File): Promise<string> => {
   });
 };
 
+const fetchImageAsBase64 = async (url: string): Promise<string> => {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    const blob = await res.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error("Erro ao converter imagem em base64:", error);
+    return "";
+  }
+};
+
 export default function ServicosPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingService, setEditingService] = useState<any | null>(null);
@@ -99,6 +117,7 @@ export default function ServicosPage() {
   const [photoZoom, setPhotoZoom] = useState(1);
   const [tempPhotos, setTempPhotos] = useState<string[]>([]);
   const [isCompressing, setIsCompressing] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   // States for Otros Custos
   const [tempOtherCosts, setTempOtherCosts] = useState<OtherCost[]>([]);
@@ -106,6 +125,313 @@ export default function ServicosPage() {
   const [otherCostDesc, setOtherCostDesc] = useState("");
   const [otherCostValue, setOtherCostValue] = useState("");
   const [editingCostIndex, setEditingCostIndex] = useState<number | null>(null);
+
+  const generateServicePDF = async (service: any) => {
+    setIsGeneratingPDF(true);
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF();
+
+      // 1. Carregar logo da Sanga
+      const logoBase64 = await fetchImageAsBase64("/Sanga-Logo-Docs.png");
+
+      // 2. Cabeçalho Corporativo
+      if (logoBase64) {
+        try {
+          doc.addImage(logoBase64, "PNG", 20, 15, 45, 18);
+        } catch (err) {
+          console.error("Erro ao adicionar logo ao PDF:", err);
+        }
+      } else {
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(16);
+        doc.setTextColor(33, 33, 33);
+        doc.text("SANGA AUTO SOCORRO", 20, 25);
+      }
+
+      // Dados da Empresa (Alinhado à direita)
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(33, 33, 33);
+      doc.text("SANGA AUTO SOCORRO", 190, 18, { align: "right" });
+      
+      doc.setFont("Helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(85, 85, 85);
+      doc.text("CNPJ: 21.475.238/0001-43", 190, 22, { align: "right" });
+      doc.text("Avenida Comendador Norberto Marcondes, 453", 190, 26, { align: "right" });
+      doc.text("Campo Mourão, Paraná", 190, 30, { align: "right" });
+      doc.text("Email: sangaautosocorro@hotmail.com", 190, 34, { align: "right" });
+
+      // Linhas Decorativas (Grafite e Dourada)
+      // Linha Grafite (espessa)
+      doc.setDrawColor(51, 51, 51);
+      doc.setLineWidth(1.2);
+      doc.line(20, 38, 190, 38);
+      // Linha Dourada (fina)
+      doc.setDrawColor(197, 160, 89);
+      doc.setLineWidth(0.6);
+      doc.line(20, 39.2, 190, 39.2);
+
+      // Título do Relatório
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(15);
+      doc.setTextColor(51, 51, 51);
+      doc.text("RELATÓRIO GERAL DO SERVIÇO", 105, 48, { align: "center" });
+
+      doc.setFont("Helvetica", "italic");
+      doc.setFontSize(8.5);
+      doc.setTextColor(119, 119, 119);
+      const dateStr = new Date().toLocaleString("pt-BR");
+      doc.text(`ID do Serviço: ${service.id} | Gerado em: ${dateStr}`, 105, 52, { align: "center" });
+
+      let currentY = 60;
+
+      // Helpers de Renderização Dinâmica
+      const drawSectionTitle = (title: string) => {
+        if (currentY > 250) {
+          doc.addPage();
+          currentY = 20;
+        }
+        
+        currentY += 4;
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(197, 160, 89); // Dourado
+        doc.text(title.toUpperCase(), 20, currentY);
+        
+        currentY += 2;
+        doc.setDrawColor(197, 160, 89);
+        doc.setLineWidth(0.4);
+        doc.line(20, currentY, 190, currentY);
+        currentY += 6;
+      };
+
+      const drawTwoColumnFields = (
+        fields: { label: string; value: any; isCurrency?: boolean; suffix?: string; hideIfZero?: boolean }[]
+      ) => {
+        const activeFields = fields.filter(f => {
+          if (f.value === undefined || f.value === null || f.value === "") return false;
+          if (f.hideIfZero && (f.value === 0 || f.value === "0")) return false;
+          return true;
+        });
+        if (activeFields.length === 0) return;
+
+        for (let i = 0; i < activeFields.length; i += 2) {
+          if (currentY > 275) {
+            doc.addPage();
+            currentY = 20;
+          }
+
+          const field1 = activeFields[i];
+          const field2 = activeFields[i + 1];
+
+          // Coluna 1
+          let valStr1 = String(field1.value);
+          if (field1.isCurrency) {
+            valStr1 = `R$ ${Number(field1.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+          } else if (field1.suffix) {
+            valStr1 = `${field1.value} ${field1.suffix}`;
+          }
+          doc.setFont("Helvetica", "bold");
+          doc.setFontSize(9.5);
+          doc.setTextColor(102, 102, 102);
+          doc.text(`${field1.label}:`, 20, currentY);
+          const w1 = doc.getTextWidth(`${field1.label}: `);
+          doc.setFont("Helvetica", "normal");
+          doc.setTextColor(33, 33, 33);
+          doc.text(valStr1, 20 + w1, currentY);
+
+          // Coluna 2
+          if (field2) {
+            let valStr2 = String(field2.value);
+            if (field2.isCurrency) {
+              valStr2 = `R$ ${Number(field2.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+            } else if (field2.suffix) {
+              valStr2 = `${field2.value} ${field2.suffix}`;
+            }
+            doc.setFont("Helvetica", "bold");
+            doc.setFontSize(9.5);
+            doc.setTextColor(102, 102, 102);
+            doc.text(`${field2.label}:`, 105, currentY);
+            const w2 = doc.getTextWidth(`${field2.label}: `);
+            doc.setFont("Helvetica", "normal");
+            doc.setTextColor(33, 33, 33);
+            doc.text(valStr2, 105 + w2, currentY);
+          }
+
+          currentY += 6;
+        }
+        currentY += 2;
+      };
+
+      // 1. Dados do Cliente
+      drawSectionTitle("Dados do Cliente");
+      drawTwoColumnFields([
+        { label: "Cliente", value: service.cliente },
+        { label: "Telefone", value: service.telefone }
+      ]);
+
+      // 2. Frota & Detalhes
+      drawSectionTitle("Frota & Detalhes");
+      drawTwoColumnFields([
+        { label: "Veículo", value: service.veiculo },
+        { label: "Placa", value: service.placa },
+        { label: "Data do Serviço", value: service.data },
+        { label: "Horário", value: service.hora }
+      ]);
+
+      // 3. Percurso & Desempenho
+      drawSectionTitle("Percurso & Trajeto");
+      drawTwoColumnFields([
+        { label: "Origem", value: service.origem },
+        { label: "Destino", value: service.destino },
+        { label: "KM Inicial", value: service.kmInicial, hideIfZero: true },
+        { label: "KM Final", value: service.kmFinal, hideIfZero: true },
+        { label: "Distância Percorrida", value: service.kmPercorrido, suffix: "km", hideIfZero: true }
+      ]);
+
+      // 4. Consumo & Desempenho
+      drawSectionTitle("Consumo & Desempenho");
+      drawTwoColumnFields([
+        { label: "Consumo de Combustível", value: service.consumoLitros, suffix: "Litros", hideIfZero: true },
+        { label: "Média de Consumo", value: service.mediaConsumo, suffix: "km/L", hideIfZero: true }
+      ]);
+
+      // 5. Resumo Financeiro
+      const totalOutros = service.outrosCustos ? service.outrosCustos.reduce((acc: number, curr: any) => acc + curr.valor, 0) : 0;
+      const lucroServico = (Number(service.valor) || 0) - (Number(service.valorPedagio) || 0) - totalOutros;
+
+      drawSectionTitle("Resumo Financeiro");
+      drawTwoColumnFields([
+        { label: "Valor Cobrado", value: service.valor, isCurrency: true, hideIfZero: true },
+        { label: "Valor do Pedágio", value: service.valorPedagio, isCurrency: true, hideIfZero: true },
+        { label: "Lucro Estimado", value: lucroServico, isCurrency: true }
+      ]);
+
+      // Detalhamento de Outros Custos
+      if (service.outrosCustos && service.outrosCustos.length > 0) {
+        drawSectionTitle("Detalhamento de Outros Custos");
+        service.outrosCustos.forEach((c: any) => {
+          if (currentY > 275) {
+            doc.addPage();
+            currentY = 20;
+          }
+          doc.setFont("Helvetica", "bold");
+          doc.setFontSize(9.5);
+          doc.setTextColor(102, 102, 102);
+          doc.text(c.descricao, 20, currentY);
+          
+          doc.setFont("Helvetica", "normal");
+          doc.setTextColor(153, 51, 51);
+          const valStr = `R$ ${Number(c.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+          doc.text(valStr, 190 - doc.getTextWidth(valStr), currentY);
+          currentY += 6;
+        });
+
+        if (currentY > 275) {
+          doc.addPage();
+          currentY = 20;
+        }
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.2);
+        doc.line(20, currentY, 190, currentY);
+        currentY += 4;
+
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(9.5);
+        doc.setTextColor(33, 33, 33);
+        doc.text("Total de Outros Custos", 20, currentY);
+
+        doc.setTextColor(153, 51, 51);
+        const totalOutrosStr = `R$ ${totalOutros.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+        doc.text(totalOutrosStr, 190 - doc.getTextWidth(totalOutrosStr), currentY);
+        currentY += 8;
+      }
+
+      // Descrição
+      if (service.descricao && service.descricao.trim() !== "") {
+        drawSectionTitle("Descrição das Atividades");
+        doc.setFont("Helvetica", "normal");
+        doc.setFontSize(9.5);
+        doc.setTextColor(51, 51, 51);
+        
+        const splitDesc = doc.splitTextToSize(service.descricao, 170);
+        splitDesc.forEach((line: string) => {
+          if (currentY > 280) {
+            doc.addPage();
+            currentY = 20;
+          }
+          doc.text(line, 20, currentY);
+          currentY += 5;
+        });
+        currentY += 4;
+      }
+
+      // Galeria de fotos (Grade de até 3 colunas)
+      if (service.fotos && service.fotos.length > 0) {
+        drawSectionTitle("Galeria de Imagens do Atendimento");
+
+        const colWidth = 50;
+        const colHeight = 50;
+        const gap = 5;
+        const startX = 20;
+
+        for (let i = 0; i < service.fotos.length; i++) {
+          const colIndex = i % 3;
+
+          if (colIndex === 0 && currentY + colHeight > 280) {
+            doc.addPage();
+            currentY = 20;
+          }
+
+          const photoX = startX + colIndex * (colWidth + gap);
+          
+          try {
+            const imgData = service.fotos[i];
+            doc.addImage(imgData, "JPEG", photoX, currentY, colWidth, colHeight);
+          } catch (e) {
+            console.error("Erro ao adicionar imagem ao PDF:", e);
+            doc.setDrawColor(200, 200, 200);
+            doc.setLineWidth(0.2);
+            doc.rect(photoX, currentY, colWidth, colHeight);
+            doc.setFont("Helvetica", "italic");
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text("Erro ao carregar imagem", photoX + 5, currentY + 25);
+          }
+
+          if (colIndex === 2 || i === service.fotos.length - 1) {
+            currentY += colHeight + gap;
+          }
+        }
+      }
+
+      // Rodapé dinâmico em todas as páginas
+      const totalPages = doc.getNumberOfPages();
+      for (let p = 1; p <= totalPages; p++) {
+        doc.setPage(p);
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.2);
+        doc.line(20, 282, 190, 282);
+        
+        doc.setFont("Helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text("Sanga Auto Socorro - Relatório de Serviço", 20, 287);
+        doc.text(`Página ${p} de ${totalPages}`, 190, 287, { align: "right" });
+      }
+
+      // Salvar Documento
+      const filename = `relatorio-servico-${service.cliente.replace(/\s+/g, "-").toLowerCase()}-${service.id}.pdf`;
+      doc.save(filename);
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      alert("Ocorreu um erro ao gerar o PDF.");
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
 
   const { data: servicos, loading, addDocument, updateDocument, deleteDocument } = useCollection("servicos", initialMockServices);
   const { register, watch, handleSubmit, reset } = useForm<ServiceFormData>();
@@ -819,6 +1145,27 @@ export default function ServicosPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Botão Baixar PDF */}
+                <div className="pt-6 border-t border-border flex justify-end">
+                  <button
+                    onClick={() => generateServicePDF(viewingService)}
+                    disabled={isGeneratingPDF}
+                    className="w-full sm:w-auto bg-primary text-primary-foreground font-semibold px-6 py-3 rounded-xl hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isGeneratingPDF ? (
+                      <>
+                        <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent animate-spin rounded-full" />
+                        Gerando PDF...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-4 w-4" />
+                        Baixar PDF
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </>
