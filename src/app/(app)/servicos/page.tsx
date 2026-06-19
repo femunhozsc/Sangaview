@@ -18,9 +18,17 @@ import {
   RotateCcw,
   Calendar,
   Clock,
-  Phone
+  Phone,
+  DollarSign,
+  Fuel,
+  Coins
 } from "lucide-react";
 import { useCollection } from "@/hooks/useCollection";
+
+type OtherCost = {
+  descricao: string;
+  valor: number;
+};
 
 type ServiceFormData = {
   cliente: string;
@@ -35,11 +43,13 @@ type ServiceFormData = {
   kmFinal: number;
   valor: number;
   descricao: string;
+  valorPedagio: number;
+  consumoLitros: number;
 };
 
 const initialMockServices = [
-  { id: "s1", cliente: "João Silva", telefone: "(11) 99999-8888", data: "2026-06-18", hora: "14:30", origem: "Centro", destino: "Vila Nova", veiculo: "Honda Civic", placa: "ABC-1234", kmInicial: 100, kmFinal: 125, kmPercorrido: 25, valor: 250, descricao: "Serviço padrão de guincho.", fotos: [] },
-  { id: "s2", cliente: "Maria Oliveira", telefone: "(11) 98888-7777", data: "2026-06-17", hora: "10:15", origem: "Aeroporto", destino: "Jardins", veiculo: "Toyota Corolla", placa: "XYZ-9876", kmInicial: 200, kmFinal: 235, kmPercorrido: 35, valor: 380, descricao: "Carro com pane mecânica.", fotos: [] }
+  { id: "s1", cliente: "João Silva", telefone: "(11) 99999-8888", data: "2026-06-18", hora: "14:30", origem: "Centro", destino: "Vila Nova", veiculo: "Honda Civic", placa: "ABC-1234", kmInicial: 100, kmFinal: 125, kmPercorrido: 25, valor: 250, descricao: "Serviço padrão de guincho.", fotos: [], valorPedagio: 22.50, consumoLitros: 5, mediaConsumo: 5, outrosCustos: [{ descricao: "Estacionamento", valor: 15 }] },
+  { id: "s2", cliente: "Maria Oliveira", telefone: "(11) 98888-7777", data: "2026-06-17", hora: "10:15", origem: "Aeroporto", destino: "Jardins", veiculo: "Toyota Corolla", placa: "XYZ-9876", kmInicial: 200, kmFinal: 235, kmPercorrido: 35, valor: 380, descricao: "Carro com pane mecânica.", fotos: [], valorPedagio: 0, consumoLitros: 4, mediaConsumo: 8.75, outrosCustos: [] }
 ];
 
 // Helper to compress image using HTML5 Canvas
@@ -71,7 +81,6 @@ const compressImage = (file: File): Promise<string> => {
         canvas.height = height;
         const ctx = canvas.getContext("2d");
         ctx?.drawImage(img, 0, 0, width, height);
-        // Compressed JPEG (quality 0.6)
         const dataUrl = canvas.toDataURL("image/jpeg", 0.6);
         resolve(dataUrl);
       };
@@ -91,6 +100,13 @@ export default function ServicosPage() {
   const [tempPhotos, setTempPhotos] = useState<string[]>([]);
   const [isCompressing, setIsCompressing] = useState(false);
 
+  // States for Otros Custos
+  const [tempOtherCosts, setTempOtherCosts] = useState<OtherCost[]>([]);
+  const [isOtherCostModalOpen, setIsOtherCostModalOpen] = useState(false);
+  const [otherCostDesc, setOtherCostDesc] = useState("");
+  const [otherCostValue, setOtherCostValue] = useState("");
+  const [editingCostIndex, setEditingCostIndex] = useState<number | null>(null);
+
   const { data: servicos, loading, addDocument, updateDocument, deleteDocument } = useCollection("servicos", initialMockServices);
   const { register, watch, handleSubmit, reset } = useForm<ServiceFormData>();
 
@@ -98,10 +114,16 @@ export default function ServicosPage() {
   const kmFinal = watch("kmFinal", 0);
   const kmPercorrido = (Number(kmFinal) - Number(kmInicial) > 0) ? (Number(kmFinal) - Number(kmInicial)) : 0;
 
+  const consumoLitros = watch("consumoLitros", 0);
+  const mediaConsumo = (Number(consumoLitros) > 0 && kmPercorrido > 0) 
+    ? Number((kmPercorrido / Number(consumoLitros)).toFixed(2)) 
+    : 0;
+
   const handleEdit = (servico: any, e: React.MouseEvent) => {
-    e.stopPropagation(); // Avoid triggering open details modal
+    e.stopPropagation();
     setEditingService(servico);
     setTempPhotos(servico.fotos || []);
+    setTempOtherCosts(servico.outrosCustos || []);
     reset({
       cliente: servico.cliente,
       telefone: servico.telefone || "",
@@ -114,6 +136,8 @@ export default function ServicosPage() {
       kmInicial: Number(servico.kmInicial) || 0,
       kmFinal: Number(servico.kmFinal) || 0,
       valor: Number(servico.valor) || 0,
+      valorPedagio: Number(servico.valorPedagio) || 0,
+      consumoLitros: Number(servico.consumoLitros) || 0,
       descricao: servico.descricao || ""
     });
     setIsFormOpen(true);
@@ -152,6 +176,49 @@ export default function ServicosPage() {
     setTempPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Other costs handlers
+  const handleOpenAddCost = () => {
+    setEditingCostIndex(null);
+    setOtherCostDesc("");
+    setOtherCostValue("");
+    setIsOtherCostModalOpen(true);
+  };
+
+  const handleOpenEditCost = (index: number) => {
+    setEditingCostIndex(index);
+    setOtherCostDesc(tempOtherCosts[index].descricao);
+    setOtherCostValue(String(tempOtherCosts[index].valor));
+    setIsOtherCostModalOpen(true);
+  };
+
+  const handleSaveCost = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otherCostDesc.trim() || !otherCostValue) return;
+
+    const valueNum = Number(otherCostValue) || 0;
+    const newCost: OtherCost = {
+      descricao: otherCostDesc.trim(),
+      valor: valueNum
+    };
+
+    if (editingCostIndex !== null) {
+      // Edit existing cost
+      setTempOtherCosts(prev => prev.map((item, idx) => idx === editingCostIndex ? newCost : item));
+    } else {
+      // Add new cost
+      setTempOtherCosts(prev => [...prev, newCost]);
+    }
+
+    setIsOtherCostModalOpen(false);
+    setOtherCostDesc("");
+    setOtherCostValue("");
+    setEditingCostIndex(null);
+  };
+
+  const handleRemoveCost = (index: number) => {
+    setTempOtherCosts(prev => prev.filter((_, idx) => idx !== index));
+  };
+
   const onSubmit = async (data: ServiceFormData) => {
     try {
       const payload = {
@@ -167,8 +234,12 @@ export default function ServicosPage() {
         kmFinal: Number(data.kmFinal) || 0,
         kmPercorrido: kmPercorrido,
         valor: Number(data.valor) || 0,
+        valorPedagio: Number(data.valorPedagio) || 0,
+        consumoLitros: Number(data.consumoLitros) || 0,
+        mediaConsumo: mediaConsumo,
         descricao: data.descricao || "",
-        fotos: tempPhotos
+        fotos: tempPhotos,
+        outrosCustos: tempOtherCosts
       };
 
       if (editingService) {
@@ -182,6 +253,7 @@ export default function ServicosPage() {
       setIsFormOpen(false);
       setEditingService(null);
       setTempPhotos([]);
+      setTempOtherCosts([]);
       reset();
     } catch (error) {
       console.error("Erro ao salvar serviço:", error);
@@ -201,12 +273,13 @@ export default function ServicosPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Serviços</h1>
-          <p className="text-sm text-muted-foreground">Gerencie atendimentos e guinchos.</p>
+          <p className="text-sm text-muted-foreground">Gerencie atendimentos, guinchos e custos operacionais.</p>
         </div>
         <button 
           onClick={() => {
             setEditingService(null);
             setTempPhotos([]);
+            setTempOtherCosts([]);
             reset({
               cliente: "",
               telefone: "",
@@ -219,11 +292,13 @@ export default function ServicosPage() {
               kmInicial: 0,
               kmFinal: 0,
               valor: 0,
+              valorPedagio: 0,
+              consumoLitros: 0,
               descricao: ""
             });
             setIsFormOpen(true);
           }}
-          className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
+          className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90 transition-opacity cursor-pointer animate-fade-in"
         >
           <Plus className="h-4 w-4" />
           <span>Novo Serviço</span>
@@ -258,9 +333,9 @@ export default function ServicosPage() {
                   <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
                     <span className="bg-muted px-2 py-1 rounded-md">{servico.data} {servico.hora}</span>
                     <span className="bg-muted px-2 py-1 rounded-md">{servico.kmPercorrido || 0} km rodados</span>
-                    {servico.fotos && servico.fotos.length > 0 && (
-                      <span className="bg-primary/10 text-primary px-2 py-1 rounded-md font-semibold">
-                        {servico.fotos.length} {servico.fotos.length === 1 ? "foto" : "fotos"}
+                    {servico.valorPedagio > 0 && (
+                      <span className="bg-red-500/10 text-red-500 px-2 py-1 rounded-md font-semibold">
+                        Pedágio: R$ {servico.valorPedagio}
                       </span>
                     )}
                   </div>
@@ -297,18 +372,14 @@ export default function ServicosPage() {
         {isFormOpen && (
           <>
             <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsFormOpen(false)}
-              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
             />
             <motion.div 
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-x-0 bottom-0 z-50 mt-24 flex h-[90vh] flex-col rounded-t-[2rem] bg-background shadow-2xl overflow-hidden md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:h-auto md:max-h-[90vh] md:w-full md:max-w-2xl md:rounded-2xl"
+              className="fixed inset-x-0 bottom-0 z-40 mt-24 flex h-[90vh] flex-col rounded-t-[2rem] bg-background shadow-2xl overflow-hidden md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:h-auto md:max-h-[90vh] md:w-full md:max-w-2xl md:rounded-2xl"
             >
               <div className="flex items-center justify-between border-b border-border p-6 bg-card">
                 <h2 className="text-xl font-bold">{editingService ? "Editar Serviço" : "Cadastrar Serviço"}</h2>
@@ -320,7 +391,7 @@ export default function ServicosPage() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 overscroll-contain bg-background">
+              <div className="flex-1 overflow-y-auto p-6 overscroll-contain bg-background space-y-6">
                 <form id="service-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -366,7 +437,8 @@ export default function ServicosPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-muted/50 p-4 rounded-2xl border border-border">
+                  {/* KMs */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-muted/30 p-4 rounded-2xl border border-border">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">KM Inicial</label>
                       <input type="number" {...register("kmInicial")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" />
@@ -376,16 +448,82 @@ export default function ServicosPage() {
                       <input type="number" {...register("kmFinal")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" />
                     </div>
                     <div className="space-y-2 col-span-2 sm:col-span-1">
-                      <label className="text-sm font-medium text-muted-foreground">Total Percorrido</label>
+                      <label className="text-sm font-medium text-muted-foreground text-center block">Total Rodado</label>
                       <div className="w-full rounded-xl bg-primary/10 text-primary px-4 py-3 text-sm font-bold border border-primary/20 text-center">
                         {kmPercorrido} km
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Valor Cobrado (R$)</label>
-                    <input type="number" step="0.01" {...register("valor")} className="w-full sm:w-1/2 rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary text-green-600 dark:text-green-500 font-bold text-lg" placeholder="0,00" />
+                  {/* Valores financeiro do serviço */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Valor Cobrado (R$)</label>
+                      <input type="number" step="0.01" {...register("valor")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary text-green-600 dark:text-green-500 font-bold text-lg" placeholder="0,00" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Valor do Pedágio (R$)</label>
+                      <input type="number" step="0.01" {...register("valorPedagio")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary text-red-500 font-bold text-lg" placeholder="0,00" />
+                    </div>
+                  </div>
+
+                  {/* Consumo e Média */}
+                  <div className="grid grid-cols-2 gap-4 bg-muted/40 p-4 rounded-2xl border border-border">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Consumo (L)</label>
+                      <input type="number" step="0.1" {...register("consumoLitros")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary font-semibold" placeholder="0.0" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-muted-foreground block text-center">Média de Consumo</label>
+                      <div className="w-full rounded-xl bg-blue-500/10 text-blue-500 px-4 py-3 text-sm font-bold border border-blue-500/20 text-center">
+                        {mediaConsumo} km/L
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Outros Custos */}
+                  <div className="space-y-3 bg-muted/20 p-4 rounded-2xl border border-border/80">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-bold flex items-center gap-1.5"><Coins className="h-4.5 w-4.5 text-primary" /> Outros Custos</label>
+                      <button 
+                        type="button" 
+                        onClick={handleOpenAddCost}
+                        className="text-xs font-semibold bg-primary/10 text-primary px-3 py-1.5 rounded-lg hover:bg-primary/20 transition-all cursor-pointer"
+                      >
+                        + Custo
+                      </button>
+                    </div>
+
+                    {tempOtherCosts.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-2">Nenhum custo adicional cadastrado.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {tempOtherCosts.map((cost, idx) => (
+                          <div key={idx} className="flex justify-between items-center p-2.5 bg-card border border-border rounded-xl text-xs">
+                            <div className="min-w-0 flex-1">
+                              <span className="font-semibold text-foreground truncate block">{cost.descricao}</span>
+                              <span className="font-bold text-red-500">R$ {cost.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex gap-1 shrink-0">
+                              <button 
+                                type="button" 
+                                onClick={() => handleOpenEditCost(idx)}
+                                className="p-1.5 text-muted-foreground hover:bg-muted rounded transition-colors"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </button>
+                              <button 
+                                type="button" 
+                                onClick={() => handleRemoveCost(idx)}
+                                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -393,14 +531,13 @@ export default function ServicosPage() {
                     <textarea {...register("descricao")} rows={3} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary resize-none" placeholder="Detalhes do serviço..." />
                   </div>
 
-                  {/* Upload de Fotos com Compactação e Previews */}
+                  {/* Fotos */}
                   <div className="space-y-3">
                     <label className="text-sm font-medium flex items-center justify-between">
                       <span>Fotos do Serviço</span>
-                      {isCompressing && <span className="text-xs text-primary animate-pulse font-semibold">Compactando fotos...</span>}
+                      {isCompressing && <span className="text-xs text-primary animate-pulse font-semibold">Compactando...</span>}
                     </label>
                     
-                    {/* Lista de Previews */}
                     {tempPhotos.length > 0 && (
                       <div className="grid grid-cols-3 gap-3 p-3 bg-muted/40 border border-border rounded-xl">
                         {tempPhotos.map((photo, index) => (
@@ -423,7 +560,6 @@ export default function ServicosPage() {
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
                           <Camera className="w-8 h-8 mb-3 text-muted-foreground" />
                           <p className="mb-1 text-sm text-muted-foreground"><span className="font-semibold text-primary">Anexar Fotos</span></p>
-                          <p className="text-[10px] text-muted-foreground">(Serão compactadas automaticamente)</p>
                         </div>
                         <input type="file" multiple accept="image/*" className="hidden" onChange={handleFileChange} disabled={isCompressing} />
                       </label>
@@ -443,6 +579,62 @@ export default function ServicosPage() {
                   Salvar Serviço
                 </button>
               </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Pop-up secundário para Adicionar/Editar Outro Custo */}
+      <AnimatePresence>
+        {isOtherCostModalOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsOtherCostModalOpen(false)}
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 flex flex-col rounded-2xl bg-card border border-border shadow-2xl p-6 max-w-sm mx-auto"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-lg flex items-center gap-2 text-foreground">
+                  <Coins className="h-5 w-5 text-primary" />
+                  {editingCostIndex !== null ? "Editar Custo" : "Adicionar Custo"}
+                </h3>
+                <button onClick={() => setIsOtherCostModalOpen(false)} className="text-muted-foreground hover:bg-muted p-1 rounded-full"><X className="h-4 w-4" /></button>
+              </div>
+              <form onSubmit={handleSaveCost} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase">Descrição / Motivo</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: Estacionamento, Lanche, Balsa" 
+                    value={otherCostDesc} 
+                    onChange={e => setOtherCostDesc(e.target.value)} 
+                    required 
+                    className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase">Valor (R$)</label>
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    placeholder="0,00" 
+                    value={otherCostValue} 
+                    onChange={e => setOtherCostValue(e.target.value)} 
+                    required 
+                    className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:border-primary font-bold text-red-500"
+                  />
+                </div>
+                <button 
+                  type="submit" 
+                  className="w-full py-3 text-sm font-bold bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow"
+                >
+                  <Save className="h-4.5 w-4.5" /> Salvar Custo
+                </button>
+              </form>
             </motion.div>
           </>
         )}
@@ -518,6 +710,24 @@ export default function ServicosPage() {
                   </div>
                 </div>
 
+                {/* Pedágio, Consumo e Média */}
+                <div className="grid grid-cols-3 gap-4 bg-muted/40 p-4 rounded-xl border border-border/60">
+                  <div>
+                    <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Pedágio</span>
+                    <span className="text-sm font-bold text-red-500 block mt-0.5">
+                      R$ {Number(viewingService.valorPedagio || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Consumo</span>
+                    <span className="text-sm font-bold text-foreground block mt-0.5">{viewingService.consumoLitros || 0} Litros</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-semibold text-blue-500 block">Média trajeto</span>
+                    <span className="text-sm font-extrabold text-blue-500 block mt-0.5">{viewingService.mediaConsumo || 0} km/L</span>
+                  </div>
+                </div>
+
                 {/* Dados Técnicos e Frota */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <div className="bg-muted/30 p-3.5 rounded-xl border border-border/50">
@@ -558,6 +768,27 @@ export default function ServicosPage() {
                   </div>
                 </div>
 
+                {/* Outros Custos Detalhados */}
+                {viewingService.outrosCustos && viewingService.outrosCustos.length > 0 && (
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Outros Custos Operacionais</span>
+                    <div className="bg-muted/20 border border-border rounded-xl p-4 space-y-2.5">
+                      {viewingService.outrosCustos.map((cost: OtherCost, index: number) => (
+                        <div key={index} className="flex justify-between items-center text-xs border-b border-border/40 pb-2 last:border-0 last:pb-0">
+                          <span className="font-semibold text-foreground">{cost.descricao}</span>
+                          <span className="font-bold text-red-500">R$ {cost.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between items-center pt-2 border-t border-border font-bold text-xs text-foreground">
+                        <span>Total Outros Custos</span>
+                        <span className="text-red-600">
+                          R$ {viewingService.outrosCustos.reduce((acc: number, curr: OtherCost) => acc + curr.valor, 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Descrição */}
                 {viewingService.descricao && (
                   <div className="space-y-1.5">
@@ -594,7 +825,7 @@ export default function ServicosPage() {
         )}
       </AnimatePresence>
 
-      {/* Modal Secundário: Visualizador de Fotos em Tela Cheia (com Zoom e Rotação) */}
+      {/* Modal Secundário: Visualizador de Fotos */}
       <AnimatePresence>
         {activePhoto && (
           <>
@@ -603,7 +834,6 @@ export default function ServicosPage() {
               onClick={() => setActivePhoto(null)}
               className="fixed inset-0 z-[60] bg-black/95 flex flex-col justify-between items-center"
             >
-              {/* Barra superior */}
               <div className="w-full flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent z-[62] text-white">
                 <span className="text-xs font-bold uppercase tracking-wider opacity-85">Visualizador de Imagens</span>
                 <button 
@@ -614,7 +844,6 @@ export default function ServicosPage() {
                 </button>
               </div>
 
-              {/* Área central da foto */}
               <div className="flex-1 flex items-center justify-center w-full overflow-hidden p-6 relative">
                 <motion.img 
                   src={activePhoto} 
@@ -625,16 +854,14 @@ export default function ServicosPage() {
                   }}
                   transition={{ type: "spring", damping: 30, stiffness: 200 }}
                   className="max-w-full max-h-[70vh] object-contain shadow-2xl select-none"
-                  onClick={(e) => e.stopPropagation()} // Prevent close on image click
+                  onClick={(e) => e.stopPropagation()}
                 />
               </div>
 
-              {/* Barra de controle inferior */}
               <div className="w-full bg-gradient-to-t from-black/90 to-transparent p-6 z-[62] flex justify-center items-center gap-5 text-white">
                 <button 
                   onClick={(e) => { e.stopPropagation(); setPhotoZoom(prev => Math.max(prev - 0.25, 0.5)); }}
                   className="rounded-xl bg-white/10 p-3 hover:bg-white/20 active:scale-95 transition-all cursor-pointer"
-                  title="Diminuir Zoom"
                 >
                   <ZoomOut className="h-5 w-5" />
                 </button>
@@ -642,7 +869,6 @@ export default function ServicosPage() {
                 <button 
                   onClick={(e) => { e.stopPropagation(); setPhotoRotation(prev => prev - 90); }}
                   className="rounded-xl bg-white/10 p-3 hover:bg-white/20 active:scale-95 transition-all cursor-pointer"
-                  title="Girar Esquerda / Deitar"
                 >
                   <RotateCcw className="h-5 w-5" />
                 </button>
@@ -657,7 +883,6 @@ export default function ServicosPage() {
                 <button 
                   onClick={(e) => { e.stopPropagation(); setPhotoRotation(prev => prev + 90); }}
                   className="rounded-xl bg-white/10 p-3 hover:bg-white/20 active:scale-95 transition-all cursor-pointer"
-                  title="Girar Direita / Deitar"
                 >
                   <RotateCw className="h-5 w-5" />
                 </button>
@@ -665,7 +890,6 @@ export default function ServicosPage() {
                 <button 
                   onClick={(e) => { e.stopPropagation(); setPhotoZoom(prev => Math.min(prev + 0.25, 3)); }}
                   className="rounded-xl bg-white/10 p-3 hover:bg-white/20 active:scale-95 transition-all cursor-pointer"
-                  title="Aumentar Zoom"
                 >
                   <ZoomIn className="h-5 w-5" />
                 </button>

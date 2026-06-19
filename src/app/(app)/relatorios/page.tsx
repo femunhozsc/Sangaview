@@ -16,15 +16,17 @@ import {
   Trash2,
   X,
   ShoppingCart,
-  DollarSign
+  DollarSign,
+  Coins,
+  Save
 } from "lucide-react";
 import { useCollection } from "@/hooks/useCollection";
 
 // Mock data fallbacks
 const initialMockServices = [
-  { id: "s1", cliente: "João Silva", telefone: "(11) 99999-8888", data: "2026-06-18", hora: "14:30", origem: "Centro", destino: "Vila Nova", veiculo: "Honda Civic", placa: "ABC-1234", kmInicial: 100, kmFinal: 125, kmPercorrido: 25, valor: 250, descricao: "Serviço padrão de guincho.", fotos: [] },
-  { id: "s2", cliente: "Maria Oliveira", telefone: "(11) 98888-7777", data: "2026-06-17", hora: "10:15", origem: "Aeroporto", destino: "Jardins", veiculo: "Toyota Corolla", placa: "XYZ-9876", kmInicial: 200, kmFinal: 235, kmPercorrido: 35, valor: 380, descricao: "Carro com pane mecânica.", fotos: [] },
-  { id: "s3", cliente: "Carlos Souza", telefone: "(11) 97777-6666", data: "2026-05-12", hora: "08:00", origem: "Bairro Alto", destino: "Oficina Central", veiculo: "Fiat Palio", placa: "MNO-4567", kmInicial: 50, kmFinal: 70, kmPercorrido: 20, valor: 180, descricao: "Bateria arriada.", fotos: [] }
+  { id: "s1", cliente: "João Silva", telefone: "(11) 99999-8888", data: "2026-06-18", hora: "14:30", origem: "Centro", destino: "Vila Nova", veiculo: "Honda Civic", placa: "ABC-1234", kmInicial: 100, kmFinal: 125, kmPercorrido: 25, valor: 250, descricao: "Serviço padrão de guincho.", fotos: [], valorPedagio: 22.50, consumoLitros: 5, mediaConsumo: 5, outrosCustos: [{ descricao: "Estacionamento", valor: 15 }] },
+  { id: "s2", cliente: "Maria Oliveira", telefone: "(11) 98888-7777", data: "2026-06-17", hora: "10:15", origem: "Aeroporto", destino: "Jardins", veiculo: "Toyota Corolla", placa: "XYZ-9876", kmInicial: 200, kmFinal: 235, kmPercorrido: 35, valor: 380, descricao: "Carro com pane mecânica.", fotos: [], valorPedagio: 0, consumoLitros: 4, mediaConsumo: 8.75, outrosCustos: [] },
+  { id: "s3", cliente: "Carlos Souza", telefone: "(11) 97777-6666", data: "2026-05-12", hora: "08:00", origem: "Bairro Alto", destino: "Oficina Central", veiculo: "Fiat Palio", placa: "MNO-4567", kmInicial: 50, kmFinal: 70, kmPercorrido: 20, valor: 180, descricao: "Bateria arriada.", fotos: [], valorPedagio: 0, consumoLitros: 0, mediaConsumo: 0, outrosCustos: [] }
 ];
 const initialMockFuel = [
   { id: "a1", veiculo: "Guincho 01", location: "Posto Ipiranga", data: "2026-06-18", km: 145200, litros: 60, valor: 350 },
@@ -61,9 +63,68 @@ export default function RelatoriosPage() {
   const [editingItem, setEditingItem] = useState<any | null>(null);
   const [editingType, setEditingType] = useState<"servico" | "abastecimento" | "manutencao" | "compra" | null>(null);
 
+  // States for Other Costs inside Report's Edit Modal
+  const [isOtherCostModalOpen, setIsOtherCostModalOpen] = useState(false);
+  const [otherCostDesc, setOtherCostDesc] = useState("");
+  const [otherCostValue, setOtherCostValue] = useState("");
+  const [editingCostIndex, setEditingCostIndex] = useState<number | null>(null);
+
   const handleStartEdit = (item: any, type: "servico" | "abastecimento" | "manutencao" | "compra") => {
     setEditingItem({ ...item });
     setEditingType(type);
+  };
+
+  const handleOpenAddCost = () => {
+    setEditingCostIndex(null);
+    setOtherCostDesc("");
+    setOtherCostValue("");
+    setIsOtherCostModalOpen(true);
+  };
+
+  const handleOpenEditCost = (index: number) => {
+    if (!editingItem) return;
+    setEditingCostIndex(index);
+    setOtherCostDesc(editingItem.outrosCustos[index].descricao);
+    setOtherCostValue(String(editingItem.outrosCustos[index].valor));
+    setIsOtherCostModalOpen(true);
+  };
+
+  const handleSaveCostRelatorios = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otherCostDesc.trim() || !otherCostValue || !editingItem) return;
+
+    const valueNum = Number(otherCostValue) || 0;
+    const newCost = {
+      descricao: otherCostDesc.trim(),
+      valor: valueNum
+    };
+
+    const currentCosts = editingItem.outrosCustos || [];
+    let updatedCosts = [];
+    if (editingCostIndex !== null) {
+      updatedCosts = currentCosts.map((item: any, idx: number) => idx === editingCostIndex ? newCost : item);
+    } else {
+      updatedCosts = [...currentCosts, newCost];
+    }
+
+    setEditingItem({
+      ...editingItem,
+      outrosCustos: updatedCosts
+    });
+
+    setIsOtherCostModalOpen(false);
+    setOtherCostDesc("");
+    setOtherCostValue("");
+    setEditingCostIndex(null);
+  };
+
+  const handleRemoveCostRelatorios = (index: number) => {
+    if (!editingItem) return;
+    const currentCosts = editingItem.outrosCustos || [];
+    setEditingItem({
+      ...editingItem,
+      outrosCustos: currentCosts.filter((_: any, idx: number) => idx !== index)
+    });
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -72,6 +133,13 @@ export default function RelatoriosPage() {
 
     try {
       if (editingType === "servico") {
+        const kmIn = Number(editingItem.kmInicial) || 0;
+        const kmFi = Number(editingItem.kmFinal) || 0;
+        const kmDiff = kmFi - kmIn;
+        const kmPerc = kmDiff > 0 ? kmDiff : 0;
+        const consL = Number(editingItem.consumoLitros) || 0;
+        const medC = (consL > 0 && kmPerc > 0) ? Number((kmPerc / consL).toFixed(2)) : 0;
+
         await updateS(editingItem.id, {
           cliente: editingItem.cliente,
           veiculo: editingItem.veiculo || "",
@@ -80,10 +148,14 @@ export default function RelatoriosPage() {
           data: editingItem.data || "",
           hora: editingItem.hora || "",
           valor: Number(editingItem.valor) || 0,
-          kmInicial: Number(editingItem.kmInicial) || 0,
-          kmFinal: Number(editingItem.kmFinal) || 0,
-          kmPercorrido: (Number(editingItem.kmFinal) - Number(editingItem.kmInicial) > 0) ? (Number(editingItem.kmFinal) - Number(editingItem.kmInicial)) : 0,
-          descricao: editingItem.descricao || ""
+          valorPedagio: Number(editingItem.valorPedagio) || 0,
+          consumoLitros: consL,
+          mediaConsumo: medC,
+          kmInicial: kmIn,
+          kmFinal: kmFi,
+          kmPercorrido: kmPerc,
+          descricao: editingItem.descricao || "",
+          outrosCustos: editingItem.outrosCustos || []
         });
       } else if (editingType === "abastecimento") {
         await updateA(editingItem.id, {
@@ -161,6 +233,8 @@ export default function RelatoriosPage() {
           faturamento: number;
           despesasCombustivel: number;
           despesasManutencao: number;
+          despesasPedagio: number;
+          despesasOutrosCustos: number;
           lucroLiquido: number;
           kmPercorrido: number;
           litrosAbastecidos: number;
@@ -190,6 +264,8 @@ export default function RelatoriosPage() {
           faturamento: 0,
           despesasCombustivel: 0,
           despesasManutencao: 0,
+          despesasPedagio: 0,
+          despesasOutrosCustos: 0,
           lucroLiquido: 0,
           kmPercorrido: 0,
           litrosAbastecidos: 0,
@@ -204,6 +280,11 @@ export default function RelatoriosPage() {
       group.servicos.push(s);
       group.faturamentoOriginal += Number(s.valor) || 0;
       group.kmPercorrido += Number(s.kmPercorrido) || 0;
+      // Acumula pedágio e outros custos nas despesas do mês
+      group.despesasPedagio += Number(s.valorPedagio) || 0;
+      const outros = s.outrosCustos || [];
+      const sumOutros = outros.reduce((sum: number, c: any) => sum + (Number(c.valor) || 0), 0);
+      group.despesasOutrosCustos += sumOutros;
     });
 
     abastecimentos.forEach(a => {
@@ -236,9 +317,14 @@ export default function RelatoriosPage() {
     Object.keys(groups).forEach(year => {
       Object.keys(groups[year]).forEach(month => {
         const group = groups[year][month];
-        // Faturamento líquido deduzido de compras efetuadas
         group.faturamento = Math.max(group.faturamentoOriginal - group.faturamentoDesconto, 0);
-        group.lucroLiquido = group.faturamento - (group.despesasCombustivel + group.despesasManutencao);
+        // O lucro líquido abate combustível, manutenções, pedágios e outros custos operacionais dos serviços
+        group.lucroLiquido = group.faturamento - (
+          group.despesasCombustivel + 
+          group.despesasManutencao + 
+          group.despesasPedagio + 
+          group.despesasOutrosCustos
+        );
       });
     });
 
@@ -275,7 +361,12 @@ export default function RelatoriosPage() {
     Object.keys(reportsData[selectedYear]).forEach(month => {
       const group = reportsData[selectedYear][month];
       faturamento += group.faturamento;
-      despesas += (group.despesasCombustivel + group.despesasManutencao);
+      despesas += (
+        group.despesasCombustivel + 
+        group.despesasManutencao + 
+        group.despesasPedagio + 
+        group.despesasOutrosCustos
+      );
     });
     return {
       faturamento,
@@ -291,13 +382,23 @@ export default function RelatoriosPage() {
     return reportsData[selectedYear][selectedMonth];
   }, [reportsData, selectedYear, selectedMonth]);
 
+  // Consolidado de despesas extras: Manutenção + Pedágio + Outros Custos dos Serviços
+  const despesasExtras = useMemo(() => {
+    if (!activeMonthData) return 0;
+    return (
+      activeMonthData.despesasManutencao + 
+      activeMonthData.despesasPedagio + 
+      activeMonthData.despesasOutrosCustos
+    );
+  }, [activeMonthData]);
+
   return (
     <div className="space-y-6 pb-12">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
           <BarChart3 className="h-6 w-6 text-primary" /> Relatórios Operacionais
         </h1>
-        <p className="text-sm text-muted-foreground">Histórico financeiro e operacional agrupado com deduções automáticas.</p>
+        <p className="text-sm text-muted-foreground">Histórico financeiro consolidado com despesas e pedágios integrados.</p>
       </div>
 
       {loading ? (
@@ -381,7 +482,7 @@ export default function RelatoriosPage() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center pt-2 border-t border-border/85 text-sm">
-                    <span className="font-semibold text-muted-foreground">Lucro Líquido:</span>
+                    <span className="font-semibold text-muted-foreground">Lucro Líquido Real:</span>
                     <span className={`font-bold ${annualStats.lucro >= 0 ? "text-green-500" : "text-red-500"}`}>
                       R$ {annualStats.lucro.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </span>
@@ -423,9 +524,9 @@ export default function RelatoriosPage() {
                         </span>
                       </div>
                       <div className="bg-muted/30 p-4 rounded-xl border border-border/60">
-                        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground block">Manutenção</span>
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground block">Manut. / Pedágios / Outros</span>
                         <span className="text-base sm:text-lg font-bold text-red-500 mt-1 block">
-                          R$ {activeMonthData.despesasManutencao.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+                          R$ {despesasExtras.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
                         </span>
                       </div>
                       <div className={`p-4 rounded-xl border ${activeMonthData.lucroLiquido >= 0 ? "bg-green-500/5 border-green-500/10" : "bg-red-500/5 border-red-500/10"}`}>
@@ -497,18 +598,29 @@ export default function RelatoriosPage() {
                           <div className="p-8 text-center text-sm text-muted-foreground">Nenhum serviço registrado neste mês.</div>
                         ) : (
                           activeMonthData.servicos.map((s, index) => (
-                            <div key={s.id || index} className="p-4 flex justify-between items-center text-sm hover:bg-muted/20 gap-4">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-foreground truncate">{s.cliente} ({s.veiculo})</p>
-                                <p className="text-xs text-muted-foreground mt-0.5 truncate">{s.origem} → {s.destino} | {s.data}</p>
-                              </div>
-                              <div className="flex items-center gap-3 shrink-0">
-                                <span className="font-bold text-green-500">R$ {Number(s.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
-                                <div className="flex gap-1">
-                                  <button onClick={() => handleStartEdit(s, "servico")} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded transition-colors cursor-pointer" title="Editar"><Edit2 className="h-3.5 w-3.5" /></button>
-                                  <button onClick={() => handleDeleteItem(s.id, "servico")} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
+                            <div key={s.id || index} className="p-4 flex flex-col justify-between text-sm hover:bg-muted/10 gap-2 border-b border-border/40 last:border-0">
+                              <div className="flex justify-between items-center w-full gap-4">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold text-foreground truncate">{s.cliente} ({s.veiculo})</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{s.origem} → {s.destino} | {s.data}</p>
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                  <span className="font-bold text-green-500">R$ {Number(s.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                                  <div className="flex gap-1">
+                                    <button onClick={() => handleStartEdit(s, "servico")} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded transition-colors cursor-pointer" title="Editar"><Edit2 className="h-3.5 w-3.5" /></button>
+                                    <button onClick={() => handleDeleteItem(s.id, "servico")} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
+                                  </div>
                                 </div>
                               </div>
+                              {/* Mostrar detalhe de custos do serviço direto na lista de relatórios */}
+                              {(s.valorPedagio > 0 || (s.outrosCustos && s.outrosCustos.length > 0)) && (
+                                <div className="bg-muted/50 p-2 rounded-lg text-xs space-y-1">
+                                  {s.valorPedagio > 0 && <p className="text-muted-foreground"><span className="font-medium">Pedágio:</span> <span className="text-red-500 font-semibold">R$ {s.valorPedagio}</span></p>}
+                                  {s.outrosCustos && s.outrosCustos.map((c: any, cidx: number) => (
+                                    <p key={cidx} className="text-muted-foreground"><span className="font-medium">{c.descricao}:</span> <span className="text-red-500 font-semibold">R$ {c.valor}</span></p>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           ))
                         )
@@ -599,12 +711,12 @@ export default function RelatoriosPage() {
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => { setEditingItem(null); setEditingType(null); }}
-              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+              className="fixed inset-0 z-55 bg-black/50 backdrop-blur-sm"
             />
             <motion.div 
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-[2rem] bg-background shadow-2xl overflow-hidden md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:max-w-md md:rounded-2xl"
+              className="fixed inset-x-0 bottom-0 z-55 flex flex-col rounded-t-[2rem] bg-background shadow-2xl overflow-hidden md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:max-w-md md:rounded-2xl"
             >
               <div className="flex items-center justify-between border-b border-border p-6 bg-card">
                 <h2 className="text-xl font-bold">
@@ -615,36 +727,89 @@ export default function RelatoriosPage() {
                 </button>
               </div>
 
-              <form onSubmit={handleSaveEdit} className="space-y-4 p-6 overflow-y-auto max-h-[60vh] bg-background">
+              <form onSubmit={handleSaveEdit} className="space-y-4 p-6 overflow-y-auto max-h-[65vh] bg-background">
                 {editingType === "servico" && (
                   <>
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-muted-foreground uppercase">Cliente</label>
-                      <input type="text" value={editingItem.cliente || ""} onChange={e => setEditingItem({ ...editingItem, cliente: e.target.value })} required className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                      <input type="text" value={editingItem.cliente || ""} onChange={e => setEditingItem({ ...editingItem, cliente: e.target.value })} required className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-muted-foreground uppercase">Veículo</label>
-                      <input type="text" value={editingItem.veiculo || ""} onChange={e => setEditingItem({ ...editingItem, veiculo: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                      <input type="text" value={editingItem.veiculo || ""} onChange={e => setEditingItem({ ...editingItem, veiculo: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold text-muted-foreground uppercase">Origem</label>
-                        <input type="text" value={editingItem.origem || ""} onChange={e => setEditingItem({ ...editingItem, origem: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                        <input type="text" value={editingItem.origem || ""} onChange={e => setEditingItem({ ...editingItem, origem: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold text-muted-foreground uppercase">Destino</label>
-                        <input type="text" value={editingItem.destino || ""} onChange={e => setEditingItem({ ...editingItem, destino: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                        <input type="text" value={editingItem.destino || ""} onChange={e => setEditingItem({ ...editingItem, destino: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 bg-muted/40 p-3 rounded-xl border border-border">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">KM Inicial</label>
+                        <input type="number" value={editingItem.kmInicial || 0} onChange={e => setEditingItem({ ...editingItem, kmInicial: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">KM Final</label>
+                        <input type="number" value={editingItem.kmFinal || 0} onChange={e => setEditingItem({ ...editingItem, kmFinal: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">Valor Cobrado (R$)</label>
+                        <input type="number" step="0.01" value={editingItem.valor || 0} onChange={e => setEditingItem({ ...editingItem, valor: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary font-bold text-green-600" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">Valor Pedágio (R$)</label>
+                        <input type="number" step="0.01" value={editingItem.valorPedagio || 0} onChange={e => setEditingItem({ ...editingItem, valorPedagio: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary font-bold text-red-500" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 bg-muted/20 p-3 rounded-xl border border-border">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">Consumo (L)</label>
+                        <input type="number" step="0.1" value={editingItem.consumoLitros || 0} onChange={e => setEditingItem({ ...editingItem, consumoLitros: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                      </div>
+                      <div className="space-y-1.5">
                         <label className="text-xs font-semibold text-muted-foreground uppercase">Data</label>
                         <input type="date" value={editingItem.data || ""} onChange={e => setEditingItem({ ...editingItem, data: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-muted-foreground uppercase">Valor</label>
-                        <input type="number" step="0.01" value={editingItem.valor || 0} onChange={e => setEditingItem({ ...editingItem, valor: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary font-bold text-green-600" />
+                    </div>
+
+                    {/* Outros Custos Sub-Edit no Relatório */}
+                    <div className="space-y-3 bg-muted/20 p-3 rounded-xl border border-border/80">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1"><Coins className="h-4 w-4" /> Outros Custos</label>
+                        <button 
+                          type="button" 
+                          onClick={handleOpenAddCost}
+                          className="text-[10px] font-bold bg-primary/15 text-primary px-2.5 py-1 rounded hover:bg-primary/20 transition-all cursor-pointer"
+                        >
+                          + Custo
+                        </button>
                       </div>
+
+                      {(!editingItem.outrosCustos || editingItem.outrosCustos.length === 0) ? (
+                        <p className="text-[10px] text-muted-foreground text-center py-1">Nenhum custo adicional.</p>
+                      ) : (
+                        <div className="space-y-1.5 max-h-[120px] overflow-y-auto">
+                          {editingItem.outrosCustos.map((cost: any, idx: number) => (
+                            <div key={idx} className="flex justify-between items-center p-2 bg-card border border-border rounded-lg text-xs">
+                              <div className="min-w-0 flex-1">
+                                <span className="font-semibold text-foreground truncate block">{cost.descricao}</span>
+                                <span className="font-bold text-red-500 text-[10px]">R$ {cost.valor}</span>
+                              </div>
+                              <div className="flex gap-1 shrink-0">
+                                <button type="button" onClick={() => handleOpenEditCost(idx)} className="p-1 text-muted-foreground hover:bg-muted rounded"><Edit2 className="h-3 w-3" /></button>
+                                <button type="button" onClick={() => handleRemoveCostRelatorios(idx)} className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded"><Trash2 className="h-3 w-3" /></button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -653,26 +818,26 @@ export default function RelatoriosPage() {
                   <>
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-muted-foreground uppercase">Veículo</label>
-                      <input type="text" value={editingItem.veiculo || ""} onChange={e => setEditingItem({ ...editingItem, veiculo: e.target.value })} required className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                      <input type="text" value={editingItem.veiculo || ""} onChange={e => setEditingItem({ ...editingItem, veiculo: e.target.value })} required className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold text-muted-foreground uppercase">Data</label>
-                        <input type="date" value={editingItem.data || ""} onChange={e => setEditingItem({ ...editingItem, data: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                        <input type="date" value={editingItem.data || ""} onChange={e => setEditingItem({ ...editingItem, data: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold text-muted-foreground uppercase">KM</label>
-                        <input type="number" value={editingItem.km || 0} onChange={e => setEditingItem({ ...editingItem, km: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                        <input type="number" value={editingItem.km || 0} onChange={e => setEditingItem({ ...editingItem, km: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary" />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold text-muted-foreground uppercase">Litros</label>
-                        <input type="number" step="0.1" value={editingItem.litros || 0} onChange={e => setEditingItem({ ...editingItem, litros: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                        <input type="number" step="0.1" value={editingItem.litros || 0} onChange={e => setEditingItem({ ...editingItem, litros: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold text-muted-foreground uppercase">Valor</label>
-                        <input type="number" step="0.01" value={editingItem.valor || 0} onChange={e => setEditingItem({ ...editingItem, valor: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary font-bold text-red-500" />
+                        <input type="number" step="0.01" value={editingItem.valor || 0} onChange={e => setEditingItem({ ...editingItem, valor: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary font-bold text-red-500" />
                       </div>
                     </div>
                   </>
@@ -682,25 +847,25 @@ export default function RelatoriosPage() {
                   <>
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-muted-foreground uppercase">Tipo / Peça</label>
-                      <input type="text" value={editingItem.tipo || ""} onChange={e => setEditingItem({ ...editingItem, tipo: e.target.value })} required className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                      <input type="text" value={editingItem.tipo || ""} onChange={e => setEditingItem({ ...editingItem, tipo: e.target.value })} required className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-muted-foreground uppercase">Veículo</label>
-                      <input type="text" value={editingItem.veiculo || ""} onChange={e => setEditingItem({ ...editingItem, veiculo: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                      <input type="text" value={editingItem.veiculo || ""} onChange={e => setEditingItem({ ...editingItem, veiculo: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold text-muted-foreground uppercase">Data</label>
-                        <input type="date" value={editingItem.data || ""} onChange={e => setEditingItem({ ...editingItem, data: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                        <input type="date" value={editingItem.data || ""} onChange={e => setEditingItem({ ...editingItem, data: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold text-muted-foreground uppercase">KM</label>
-                        <input type="number" value={editingItem.km || 0} onChange={e => setEditingItem({ ...editingItem, km: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                        <input type="number" value={editingItem.km || 0} onChange={e => setEditingItem({ ...editingItem, km: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary" />
                       </div>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-muted-foreground uppercase">Valor</label>
-                      <input type="number" step="0.01" value={editingItem.valor || 0} onChange={e => setEditingItem({ ...editingItem, valor: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary font-bold text-red-500" />
+                      <input type="number" step="0.01" value={editingItem.valor || 0} onChange={e => setEditingItem({ ...editingItem, valor: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary font-bold text-red-500" />
                     </div>
                   </>
                 )}
@@ -709,20 +874,20 @@ export default function RelatoriosPage() {
                   <>
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-muted-foreground uppercase">Nome do Item</label>
-                      <input type="text" value={editingItem.item || ""} onChange={e => setEditingItem({ ...editingItem, item: e.target.value })} required className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                      <input type="text" value={editingItem.item || ""} onChange={e => setEditingItem({ ...editingItem, item: e.target.value })} required className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-muted-foreground uppercase">Quantidade</label>
-                      <input type="text" value={editingItem.quantidade || ""} onChange={e => setEditingItem({ ...editingItem, quantidade: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                      <input type="text" value={editingItem.quantidade || ""} onChange={e => setEditingItem({ ...editingItem, quantidade: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold text-muted-foreground uppercase">Preço (R$)</label>
-                        <input type="number" step="0.01" value={editingItem.preco || 0} onChange={e => setEditingItem({ ...editingItem, preco: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary font-bold text-amber-600" />
+                        <input type="number" step="0.01" value={editingItem.preco || 0} onChange={e => setEditingItem({ ...editingItem, preco: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary font-bold text-amber-600" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold text-muted-foreground uppercase">Data da Compra</label>
-                        <input type="date" value={editingItem.compradoEm || ""} onChange={e => setEditingItem({ ...editingItem, compradoEm: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2 text-sm outline-none focus:border-primary" />
+                        <input type="date" value={editingItem.compradoEm || ""} onChange={e => setEditingItem({ ...editingItem, compradoEm: e.target.value })} className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm outline-none focus:border-primary" />
                       </div>
                     </div>
                   </>
@@ -736,6 +901,62 @@ export default function RelatoriosPage() {
                     Salvar
                   </button>
                 </div>
+              </form>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Pop-up secundário para Adicionar/Editar Outro Custo no Relatório */}
+      <AnimatePresence>
+        {isOtherCostModalOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsOtherCostModalOpen(false)}
+              className="fixed inset-0 z-[65] bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[65] flex flex-col rounded-2xl bg-card border border-border shadow-2xl p-6 max-w-sm mx-auto"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-lg flex items-center gap-2 text-foreground">
+                  <Coins className="h-5 w-5 text-primary" />
+                  {editingCostIndex !== null ? "Editar Custo" : "Adicionar Custo"}
+                </h3>
+                <button onClick={() => setIsOtherCostModalOpen(false)} className="text-muted-foreground hover:bg-muted p-1 rounded-full"><X className="h-4 w-4" /></button>
+              </div>
+              <form onSubmit={handleSaveCostRelatorios} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase">Descrição / Motivo</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: Estacionamento, Lanche" 
+                    value={otherCostDesc} 
+                    onChange={e => setOtherCostDesc(e.target.value)} 
+                    required 
+                    className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase">Valor (R$)</label>
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    placeholder="0,00" 
+                    value={otherCostValue} 
+                    onChange={e => setOtherCostValue(e.target.value)} 
+                    required 
+                    className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:border-primary font-bold text-red-500"
+                  />
+                </div>
+                <button 
+                  type="submit" 
+                  className="w-full py-3 text-sm font-bold bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow"
+                >
+                  <Save className="h-4.5 w-4.5" /> Salvar Custo
+                </button>
               </form>
             </motion.div>
           </>

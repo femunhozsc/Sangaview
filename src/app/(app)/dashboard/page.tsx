@@ -81,8 +81,17 @@ export default function Dashboard() {
   const custosTotal = useMemo(() => {
     const totalCombustivel = abastecimentos.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
     const totalManut = manutencoes.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
-    return totalCombustivel + totalManut;
-  }, [abastecimentos, manutencoes]);
+    
+    // Pedágio e Outros Custos dos Serviços
+    const totalPedagioServicos = servicos.reduce((acc, curr) => acc + (Number(curr.valorPedagio) || 0), 0);
+    const totalOutrosCustosServicos = servicos.reduce((acc, curr) => {
+      const outros = curr.outrosCustos || [];
+      const sumOutros = outros.reduce((sum: number, c: any) => sum + (Number(c.valor) || 0), 0);
+      return acc + sumOutros;
+    }, 0);
+    
+    return totalCombustivel + totalManut + totalPedagioServicos + totalOutrosCustosServicos;
+  }, [abastecimentos, manutencoes, servicos]);
 
   const lucroEstimado = faturamentoTotal - custosTotal;
 
