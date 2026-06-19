@@ -317,13 +317,14 @@ export default function RelatoriosPage() {
     Object.keys(groups).forEach(year => {
       Object.keys(groups[year]).forEach(month => {
         const group = groups[year][month];
-        group.faturamento = Math.max(group.faturamentoOriginal - group.faturamentoDesconto, 0);
-        // O lucro líquido abate combustível, manutenções, pedágios e outros custos operacionais dos serviços
+        group.faturamento = group.faturamentoOriginal;
+        // O lucro líquido abate combustível, manutenções, pedágios, outros custos operacionais dos serviços e compras concluídas
         group.lucroLiquido = group.faturamento - (
           group.despesasCombustivel + 
           group.despesasManutencao + 
           group.despesasPedagio + 
-          group.despesasOutrosCustos
+          group.despesasOutrosCustos +
+          group.faturamentoDesconto
         );
       });
     });
@@ -365,7 +366,8 @@ export default function RelatoriosPage() {
         group.despesasCombustivel + 
         group.despesasManutencao + 
         group.despesasPedagio + 
-        group.despesasOutrosCustos
+        group.despesasOutrosCustos +
+        group.faturamentoDesconto
       );
     });
     return {
@@ -382,13 +384,14 @@ export default function RelatoriosPage() {
     return reportsData[selectedYear][selectedMonth];
   }, [reportsData, selectedYear, selectedMonth]);
 
-  // Consolidado de despesas extras: Manutenção + Pedágio + Outros Custos dos Serviços
+  // Consolidado de despesas extras: Manutenção + Pedágio + Outros Custos dos Serviços + Compras Concluídas
   const despesasExtras = useMemo(() => {
     if (!activeMonthData) return 0;
     return (
       activeMonthData.despesasManutencao + 
       activeMonthData.despesasPedagio + 
-      activeMonthData.despesasOutrosCustos
+      activeMonthData.despesasOutrosCustos +
+      activeMonthData.faturamentoDesconto
     );
   }, [activeMonthData]);
 
@@ -470,7 +473,7 @@ export default function RelatoriosPage() {
                 </h3>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">Faturamento Líquido:</span>
+                    <span className="text-muted-foreground">Faturamento Bruto:</span>
                     <span className="font-semibold text-foreground">
                       R$ {annualStats.faturamento.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </span>
@@ -506,13 +509,13 @@ export default function RelatoriosPage() {
                       <h2 className="text-xl font-bold">
                         Dados de {monthNames[selectedMonth] || selectedMonth} de {selectedYear}
                       </h2>
-                      <p className="text-xs text-muted-foreground mt-1">Visão consolidada com abatimento de compras de R$ {activeMonthData.faturamentoDesconto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Visão consolidada com custos de compras de R$ {activeMonthData.faturamentoDesconto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} incluídos no lucro</p>
                     </div>
 
                     {/* KPIs */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       <div className="bg-muted/30 p-4 rounded-xl border border-border/60">
-                        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground block">Faturamento Líquido</span>
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground block">Faturamento Bruto</span>
                         <span className="text-base sm:text-lg font-bold text-green-500 mt-1 block">
                           R$ {activeMonthData.faturamento.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
                         </span>
@@ -524,7 +527,7 @@ export default function RelatoriosPage() {
                         </span>
                       </div>
                       <div className="bg-muted/30 p-4 rounded-xl border border-border/60">
-                        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground block">Manut. / Pedágios / Outros</span>
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground block">Manut. / Pedag. / Compras / Outros</span>
                         <span className="text-base sm:text-lg font-bold text-red-500 mt-1 block">
                           R$ {despesasExtras.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
                         </span>

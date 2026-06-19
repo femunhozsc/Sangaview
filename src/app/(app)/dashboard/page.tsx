@@ -71,13 +71,12 @@ export default function Dashboard() {
       .reduce((acc, curr) => acc + (Number(curr.preco) || 0), 0);
   }, [compras]);
 
-  // Faturamento = Serviços - Compras Finalizadas
+  // Faturamento = Serviços (Bruto)
   const faturamentoTotal = useMemo(() => {
-    const totalServicos = servicos.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
-    return Math.max(totalServicos - totalComprasCompradas, 0);
-  }, [servicos, totalComprasCompradas]);
+    return servicos.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
+  }, [servicos]);
 
-  // Custos = Abastecimento + Manutenção
+  // Custos = Abastecimento + Manutenção + Compras Concluídas + Pedágios + Outros Custos
   const custosTotal = useMemo(() => {
     const totalCombustivel = abastecimentos.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
     const totalManut = manutencoes.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
@@ -90,8 +89,8 @@ export default function Dashboard() {
       return acc + sumOutros;
     }, 0);
     
-    return totalCombustivel + totalManut + totalPedagioServicos + totalOutrosCustosServicos;
-  }, [abastecimentos, manutencoes, servicos]);
+    return totalCombustivel + totalManut + totalPedagioServicos + totalOutrosCustosServicos + totalComprasCompradas;
+  }, [abastecimentos, manutencoes, servicos, totalComprasCompradas]);
 
   const lucroEstimado = faturamentoTotal - custosTotal;
 
@@ -155,9 +154,7 @@ export default function Dashboard() {
                 variants={itemVariants}
                 whileHover={{ scale: 1.01, translateY: -2 }}
                 whileTap={{ scale: 0.99 }}
-                className={`flex h-full flex-col justify-between overflow-hidden rounded-2xl bg-card p-6 shadow-sm border border-border border-l-4 cursor-pointer hover:border-primary/30 hover:shadow-md transition-all duration-200 ${
-                  lucroEstimado >= 0 ? "border-l-green-500" : "border-l-red-500"
-                }`}
+                className="flex h-full flex-col justify-between overflow-hidden rounded-2xl bg-card p-6 shadow-sm border border-border border-l-4 cursor-pointer hover:border-primary/30 hover:shadow-md transition-all duration-200 border-l-primary"
               >
                 <div>
                   <div className="flex items-center justify-between">
@@ -167,11 +164,9 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <div className="mt-4">
-                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Lucro Estimado</span>
-                    <p className={`text-3xl sm:text-4xl font-extrabold tracking-tight mt-1 ${
-                      lucroEstimado >= 0 ? "text-green-500" : "text-red-500"
-                    }`}>
-                      R$ {lucroEstimado.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Faturamento Bruto</span>
+                    <p className="text-3xl sm:text-4xl font-extrabold tracking-tight mt-1 text-foreground">
+                      R$ {faturamentoTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                   </div>
                 </div>
@@ -179,10 +174,10 @@ export default function Dashboard() {
                 <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-border/80">
                   <div className="space-y-1">
                     <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3 text-green-500" /> Faturamento (-Compras)
+                      <TrendingUp className={`h-3 w-3 ${lucroEstimado >= 0 ? "text-green-500" : "text-red-500"}`} /> Lucro Estimado
                     </span>
-                    <p className="text-base sm:text-lg font-bold text-foreground">
-                      R$ {faturamentoTotal.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    <p className={`text-base sm:text-lg font-bold ${lucroEstimado >= 0 ? "text-green-500" : "text-red-500"}`}>
+                      R$ {lucroEstimado.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     </p>
                   </div>
                   <div className="space-y-1">

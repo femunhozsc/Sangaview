@@ -36,13 +36,12 @@ export default function FinanceiroPage() {
       .reduce((acc, curr) => acc + (Number(curr.preco) || 0), 0);
   }, [compras]);
 
-  // Receitas Ajustadas = Serviços - Compras Finalizadas
+  // Receitas (Faturamento Bruto) = Serviços
   const totalReceitas = useMemo(() => {
-    const totalServicos = servicos.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
-    return Math.max(totalServicos - totalComprasCompradas, 0);
-  }, [servicos, totalComprasCompradas]);
+    return servicos.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
+  }, [servicos]);
 
-  // Despesas = Combustível + Manutenção + Pedágio de Serviços + Outros Custos de Serviços
+  // Despesas = Combustível + Manutenção + Pedágio de Serviços + Outros Custos de Serviços + Compras Concluídas
   const totalDespesas = useMemo(() => {
     const totalCombustivel = abastecimentos.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
     const totalManut = manutencoes.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
@@ -55,8 +54,8 @@ export default function FinanceiroPage() {
       return acc + sumOutros;
     }, 0);
     
-    return totalCombustivel + totalManut + totalPedagioServicos + totalOutrosCustosServicos;
-  }, [abastecimentos, manutencoes, servicos]);
+    return totalCombustivel + totalManut + totalPedagioServicos + totalOutrosCustosServicos + totalComprasCompradas;
+  }, [abastecimentos, manutencoes, servicos, totalComprasCompradas]);
 
   const lucroLiquido = totalReceitas - totalDespesas;
 
@@ -109,32 +108,32 @@ export default function FinanceiroPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold tracking-tight">Financeiro</h1>
-        <p className="text-muted-foreground">Controle integrado de receitas e despesas com abatimento automático de compras finalizadas.</p>
+        <p className="text-muted-foreground">Controle de faturamento bruto e despesas com compras, combustíveis, pedágios e manutenções.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-2xl bg-card p-6 shadow-sm border border-border">
           <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-muted-foreground">Faturamento Líquido (-Compras)</span>
+            <span className="text-sm font-medium text-muted-foreground">Faturamento Bruto</span>
             <div className="p-2 rounded-full bg-green-500/10 text-green-500"><ArrowUpRight className="h-5 w-5" /></div>
           </div>
           <p className="mt-4 text-3xl font-bold text-green-500">
             R$ {totalReceitas.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          {totalComprasCompradas > 0 && (
-            <p className="text-[10px] text-muted-foreground mt-1.5">
-              Dedução de R$ {totalComprasCompradas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} em compras efetuadas.
-            </p>
-          )}
         </div>
         <div className="rounded-2xl bg-card p-6 shadow-sm border border-border">
           <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-muted-foreground">Despesas (Combustível/Manut.)</span>
+            <span className="text-sm font-medium text-muted-foreground">Despesas (Combustível/Manut./Compras)</span>
             <div className="p-2 rounded-full bg-red-500/10 text-red-500"><ArrowDownRight className="h-5 w-5" /></div>
           </div>
           <p className="mt-4 text-3xl font-bold text-red-500">
             R$ {totalDespesas.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
+          {totalComprasCompradas > 0 && (
+            <p className="text-[10px] text-muted-foreground mt-1.5">
+              Inclui R$ {totalComprasCompradas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} em compras efetuadas.
+            </p>
+          )}
         </div>
         <div className="rounded-2xl bg-card p-6 shadow-sm border border-border border-l-4 border-l-blue-500">
           <div className="flex justify-between items-center">
