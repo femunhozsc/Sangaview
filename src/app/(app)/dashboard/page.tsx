@@ -1,6 +1,6 @@
 "use client";
 import { useMemo } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { 
   TrendingUp, 
@@ -261,20 +261,30 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {lembretesPendentes.map((item) => (
-                      <div key={item.id} className="flex items-start gap-3 p-3 rounded-xl bg-muted/30 border border-border/60 hover:bg-muted/50 transition-colors">
-                        <button 
-                          onClick={() => handleToggleLembrete(item.id)}
-                          className="text-muted-foreground hover:text-primary mt-0.5 shrink-0 cursor-pointer"
+                    <AnimatePresence mode="popLayout">
+                      {lembretesPendentes.map((item) => (
+                        <motion.div 
+                          layout
+                          key={item.id} 
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          transition={{ duration: 0.2 }}
+                          className="flex items-start gap-3 p-3 rounded-xl bg-muted/30 border border-border/60 hover:bg-muted/50 transition-colors"
                         >
-                          <Square className="h-4.5 w-4.5" />
-                        </button>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-semibold text-foreground truncate">{item.texto}</p>
-                          <span className="text-[9px] text-muted-foreground block mt-0.5">Prazo: {item.data}</span>
-                        </div>
-                      </div>
-                    ))}
+                          <button 
+                            onClick={() => handleToggleLembrete(item.id)}
+                            className="text-muted-foreground hover:text-primary mt-0.5 shrink-0 cursor-pointer"
+                          >
+                            <Square className="h-4.5 w-4.5" />
+                          </button>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-foreground truncate">{item.texto}</p>
+                            <span className="text-[9px] text-muted-foreground block mt-0.5">Prazo: {item.data}</span>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
                   </div>
                 )}
               </div>
@@ -292,27 +302,37 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {comprasPendentes.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/60 hover:bg-muted/50 transition-colors gap-3">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <button 
-                            onClick={() => handleToggleCompra(item)}
-                            className="h-5 w-5 rounded-full border-2 border-border hover:border-primary flex items-center justify-center text-transparent hover:text-muted-foreground/30 shrink-0 cursor-pointer"
-                          >
-                            <Check className="h-3 w-3" />
-                          </button>
-                          <p className="text-xs font-semibold text-foreground truncate">{item.item}</p>
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-medium">{item.quantidade}</span>
-                          {item.preco !== undefined && item.preco > 0 && (
-                            <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
-                              R$ {item.preco}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                    <AnimatePresence mode="popLayout">
+                      {comprasPendentes.map((item) => (
+                        <motion.div 
+                          layout
+                          key={item.id} 
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          transition={{ duration: 0.2 }}
+                          className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/60 hover:bg-muted/50 transition-colors gap-3"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <button 
+                              onClick={() => handleToggleCompra(item)}
+                              className="h-5 w-5 rounded-full border-2 border-border hover:border-primary flex items-center justify-center text-transparent hover:text-muted-foreground/30 shrink-0 cursor-pointer"
+                            >
+                              <Check className="h-3 w-3" />
+                            </button>
+                            <p className="text-xs font-semibold text-foreground truncate">{item.item}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-medium">{item.quantidade}</span>
+                            {item.preco !== undefined && item.preco > 0 && (
+                              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                                R$ {item.preco}
+                              </span>
+                            )}
+                          </div>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
                   </div>
                 )}
               </div>

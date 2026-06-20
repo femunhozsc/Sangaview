@@ -1,5 +1,6 @@
 "use client";
 
+import { ViewTransition } from "react";
 import Link from "next/link";
 import { Menu } from "lucide-react";
 import { motion } from "framer-motion";
@@ -18,11 +19,13 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           animate={{ opacity: 1, x: 0 }}
           className="flex items-center py-1 transition-transform hover:scale-[1.03] active:scale-[0.97]"
         >
-          <img 
-            src="/Sanga-Logo.png" 
-            alt="Sanga Auto Socorro" 
-            className="h-12 md:h-14 w-auto object-contain cursor-pointer"
-          />
+          <ViewTransition name="sanga-logo">
+            <img 
+              src="/Sanga-Logo.png" 
+              alt="Sanga Auto Socorro" 
+              className="h-12 md:h-14 w-auto object-contain cursor-pointer"
+            />
+          </ViewTransition>
         </motion.div>
       </Link>
 

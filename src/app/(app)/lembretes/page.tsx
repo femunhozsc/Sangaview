@@ -143,10 +143,12 @@ export default function LembretesPage() {
                 ) : (
                   pendentes.map(item => (
                     <motion.div
+                      layout
                       key={item.id}
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
                       className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors"
                     >
                       <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -194,10 +196,12 @@ export default function LembretesPage() {
                 <AnimatePresence initial={false}>
                   {concluidos.map(item => (
                     <motion.div
+                      layout
                       key={item.id}
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
                       className="p-4 flex items-center justify-between gap-4 bg-muted/10 hover:bg-muted/20 transition-colors"
                     >
                       <div className="flex items-start gap-3 flex-1 min-w-0">

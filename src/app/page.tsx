@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, ViewTransition } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 
@@ -27,11 +27,13 @@ export default function SplashScreen() {
         >
           {/* Logo Sanga */}
           <div className="relative flex max-w-[280px] md:max-w-xs items-center justify-center rounded-2xl p-4 transition-all duration-300">
-            <img 
-              src="/Sanga-Logo.png" 
-              alt="Sanga Auto Socorro" 
-              className="h-auto w-full object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.3)]"
-            />
+            <ViewTransition name="sanga-logo">
+              <img 
+                src="/Sanga-Logo.png" 
+                alt="Sanga Auto Socorro" 
+                className="h-auto w-full object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.3)]"
+              />
+            </ViewTransition>
           </div>
         </motion.div>
       </div>

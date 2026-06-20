@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, ViewTransition } from "react";
+import { usePathname } from "next/navigation";
 import { Topbar } from "@/components/layout/topbar";
 import { Sidebar } from "@/components/layout/sidebar";
 import { BottomNav } from "@/components/layout/bottom-nav";
@@ -11,6 +12,7 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -21,7 +23,9 @@ export default function AppLayout({
         {/* Área de conteúdo rolável */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6">
           <div className="mx-auto max-w-5xl min-h-full">
-            {children}
+            <ViewTransition key={pathname} name="app-page-content">
+              {children}
+            </ViewTransition>
           </div>
         </main>
 

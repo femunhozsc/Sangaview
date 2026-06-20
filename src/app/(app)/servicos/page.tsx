@@ -640,56 +640,63 @@ export default function ServicosPage() {
         </div>
       ) : (
         <div className="grid gap-4">
-          {servicos.map((servico) => (
-            <div 
-              key={servico.id} 
-              onClick={() => setViewingService(servico)}
-              className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl bg-card p-5 shadow-sm border border-border gap-4 cursor-pointer hover:shadow-md hover:border-primary/20 transition-all duration-200"
-            >
-              <div className="flex gap-4">
-                <div className="rounded-full bg-blue-500/10 p-3 h-fit shrink-0">
-                  <Truck className="h-6 w-6 text-blue-500" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-semibold text-lg truncate">{servico.cliente} ({servico.veiculo})</h3>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-                    <MapPin className="h-3 w-3 shrink-0" />
-                    <span className="truncate">{servico.origem || "Não informada"} → {servico.destino || "Não informado"}</span>
+          <AnimatePresence mode="popLayout">
+            {servicos.map((servico) => (
+              <motion.div 
+                layout
+                key={servico.id} 
+                onClick={() => setViewingService(servico)}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.2 }}
+                className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl bg-card p-5 shadow-sm border border-border gap-4 cursor-pointer hover:shadow-md hover:border-primary/20 transition-all duration-200"
+              >
+                <div className="flex gap-4">
+                  <div className="rounded-full bg-blue-500/10 p-3 h-fit shrink-0">
+                    <Truck className="h-6 w-6 text-blue-500" />
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
-                    <span className="bg-muted px-2 py-1 rounded-md">{servico.data} {servico.hora}</span>
-                    <span className="bg-muted px-2 py-1 rounded-md">{servico.kmPercorrido || 0} km rodados</span>
-                    {servico.valorPedagio > 0 && (
-                      <span className="bg-red-500/10 text-red-500 px-2 py-1 rounded-md font-semibold">
-                        Pedágio: R$ {servico.valorPedagio}
-                      </span>
-                    )}
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-lg truncate">{servico.cliente} ({servico.veiculo})</h3>
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{servico.origem || "Não informada"} → {servico.destino || "Não informado"}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
+                      <span className="bg-muted px-2 py-1 rounded-md">{servico.data} {servico.hora}</span>
+                      <span className="bg-muted px-2 py-1 rounded-md">{servico.kmPercorrido || 0} km rodados</span>
+                      {servico.valorPedagio > 0 && (
+                        <span className="bg-red-500/10 text-red-500 px-2 py-1 rounded-md font-semibold">
+                          Pedágio: R$ {servico.valorPedagio}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 shrink-0">
-                <p className="text-xl font-bold text-green-500">
-                  R$ {Number(servico.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-                <div className="flex items-center gap-1">
-                  <button 
-                    onClick={(e) => handleEdit(servico, e)}
-                    className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
-                    title="Editar Serviço"
-                  >
-                    <Edit2 className="h-4.5 w-4.5" />
-                  </button>
-                  <button 
-                    onClick={(e) => handleDelete(servico.id, e)}
-                    className="rounded-lg p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-                    title="Excluir Serviço"
-                  >
-                    <Trash2 className="h-4.5 w-4.5" />
-                  </button>
+                <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 shrink-0">
+                  <p className="text-xl font-bold text-green-500">
+                    R$ {Number(servico.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={(e) => handleEdit(servico, e)}
+                      className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                      title="Editar Serviço"
+                    >
+                      <Edit2 className="h-4.5 w-4.5" />
+                    </button>
+                    <button 
+                      onClick={(e) => handleDelete(servico.id, e)}
+                      className="rounded-lg p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                      title="Excluir Serviço"
+                    >
+                      <Trash2 className="h-4.5 w-4.5" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </div>
-          ))}
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       )}
 

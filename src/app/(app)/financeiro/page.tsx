@@ -1,8 +1,23 @@
 "use client";
 import { useMemo } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUpRight, ArrowDownRight, DollarSign, Wallet } from "lucide-react";
 import { useCollection } from "@/hooks/useCollection";
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { y: 15, opacity: 0 },
+  show: { y: 0, opacity: 1, transition: { type: "spring" as const, stiffness: 300, damping: 24 } }
+};
 
 // Mock data fallbacks
 const initialMockServices = [
@@ -111,8 +126,17 @@ export default function FinanceiroPage() {
         <p className="text-muted-foreground">Controle de faturamento bruto e despesas com compras, combustíveis, pedágios e manutenções.</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl bg-card p-6 shadow-sm border border-border">
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-3"
+      >
+        <motion.div 
+          variants={itemVariants}
+          whileHover={{ translateY: -2, scale: 1.01 }}
+          className="rounded-2xl bg-card p-6 shadow-sm border border-border"
+        >
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium text-muted-foreground">Faturamento Bruto</span>
             <div className="p-2 rounded-full bg-green-500/10 text-green-500"><ArrowUpRight className="h-5 w-5" /></div>
@@ -120,8 +144,12 @@ export default function FinanceiroPage() {
           <p className="mt-4 text-3xl font-bold text-green-500">
             R$ {totalReceitas.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-        </div>
-        <div className="rounded-2xl bg-card p-6 shadow-sm border border-border">
+        </motion.div>
+        <motion.div 
+          variants={itemVariants}
+          whileHover={{ translateY: -2, scale: 1.01 }}
+          className="rounded-2xl bg-card p-6 shadow-sm border border-border"
+        >
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium text-muted-foreground">Despesas (Combustível/Manut./Compras)</span>
             <div className="p-2 rounded-full bg-red-500/10 text-red-500"><ArrowDownRight className="h-5 w-5" /></div>
@@ -134,8 +162,12 @@ export default function FinanceiroPage() {
               Inclui R$ {totalComprasCompradas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} em compras efetuadas.
             </p>
           )}
-        </div>
-        <div className="rounded-2xl bg-card p-6 shadow-sm border border-border border-l-4 border-l-blue-500">
+        </motion.div>
+        <motion.div 
+          variants={itemVariants}
+          whileHover={{ translateY: -2, scale: 1.01 }}
+          className="rounded-2xl bg-card p-6 shadow-sm border border-border border-l-4 border-l-blue-500"
+        >
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium text-muted-foreground">Lucro Líquido Real</span>
             <div className="p-2 rounded-full bg-blue-500/10 text-blue-500"><Wallet className="h-5 w-5" /></div>
@@ -143,8 +175,8 @@ export default function FinanceiroPage() {
           <p className={`mt-4 text-3xl font-bold ${lucroLiquido >= 0 ? "text-blue-500" : "text-red-500"}`}>
             R$ {lucroLiquido.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       <div className="rounded-2xl bg-card shadow-sm border border-border overflow-hidden">
         <div className="p-6 border-b border-border flex justify-between items-center bg-card">
@@ -158,23 +190,33 @@ export default function FinanceiroPage() {
           ) : extratoList.length === 0 ? (
             <div className="p-6 text-center text-muted-foreground">Nenhuma transação registrada.</div>
           ) : (
-            extratoList.map((item, i) => (
-              <div key={i} className="p-4 sm:p-6 flex justify-between items-center hover:bg-muted/50 transition-colors">
-                <div>
-                  <p className="font-medium text-sm">{item.desc}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{item.data}</p>
-                </div>
-                <p className={`font-bold text-sm ${
-                  item.tipo === 'receita' 
-                    ? 'text-green-500' 
-                    : item.tipo === 'deducao' 
-                    ? 'text-amber-500' 
-                    : 'text-red-500'
-                }`}>
-                  {item.tipo === 'receita' ? '+' : '-'} R$ {item.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              </div>
-            ))
+            <AnimatePresence mode="popLayout">
+              {extratoList.map((item, i) => (
+                <motion.div 
+                  layout
+                  key={i} 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="p-4 sm:p-6 flex justify-between items-center hover:bg-muted/50 transition-colors"
+                >
+                  <div>
+                    <p className="font-medium text-sm">{item.desc}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{item.data}</p>
+                  </div>
+                  <p className={`font-bold text-sm ${
+                    item.tipo === 'receita' 
+                      ? 'text-green-500' 
+                      : item.tipo === 'deducao' 
+                      ? 'text-amber-500' 
+                      : 'text-red-500'
+                  }`}>
+                    {item.tipo === 'receita' ? '+' : '-'} R$ {item.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </motion.div>
+              ))}
+            </AnimatePresence>
           )}
         </div>
       </div>
