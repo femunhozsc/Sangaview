@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
 
+export const dynamic = "force-dynamic";
+
 const DB_DIR = path.join(process.cwd(), "db_data");
 
 async function ensureDir() {

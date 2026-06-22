@@ -31,7 +31,7 @@ export function useCollection(collectionName: string, initialData: any[] = []) {
     }
 
     async function loadFromServer() {
-      // 1. Ler do LocalStorage primeiro para uma resposta instantânea e persistente
+      // 1. Ler do LocalStorage primeiro para uma resposta instantânea e fallback de segurança
       let localDataObj: any[] | null = null;
       if (typeof window !== "undefined") {
         const localData = localStorage.getItem(`sanga_${collectionName}`);
@@ -43,28 +43,20 @@ export function useCollection(collectionName: string, initialData: any[] = []) {
       }
 
       try {
-        const res = await fetch(`/api/data?collection=${collectionName}`);
+        // Ignorar o cache para carregar dados atualizados do servidor de forma compartilhada
+        const res = await fetch(`/api/data?collection=${collectionName}&t=${Date.now()}`, {
+          cache: "no-store"
+        });
         if (!res.ok) throw new Error("Erro ao buscar dados do servidor");
         const result = await res.json();
         
         if (result.initialized) {
-          // Se o localStorage local tiver mais registros que o servidor (ex: servidor resetou/wipou o arquivo temporário),
-          // nós mantemos os do localStorage e ressincronizamos para o servidor.
-          if (localDataObj && localDataObj.length > result.data.length) {
-            setData(localDataObj);
-            await fetch(`/api/data?collection=${collectionName}`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ initData: localDataObj })
-            });
-          } else {
-            setData(result.data);
-            if (typeof window !== "undefined") {
-              localStorage.setItem(`sanga_${collectionName}`, JSON.stringify(result.data));
-            }
+          setData(result.data);
+          if (typeof window !== "undefined") {
+            localStorage.setItem(`sanga_${collectionName}`, JSON.stringify(result.data));
           }
         } else {
-          // Servidor não inicializado. Usar dados do localStorage ou mockados.
+          // Servidor não inicializado. Inicializa com os dados mockados padrão ou os locais existentes
           const dataToUse = localDataObj || initialData;
           setData(dataToUse);
           await fetch(`/api/data?collection=${collectionName}`, {
@@ -72,13 +64,13 @@ export function useCollection(collectionName: string, initialData: any[] = []) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ initData: dataToUse })
           });
-          if (typeof window !== "undefined" && !localDataObj) {
-            localStorage.setItem(`sanga_${collectionName}`, JSON.stringify(initialData));
+          if (typeof window !== "undefined") {
+            localStorage.setItem(`sanga_${collectionName}`, JSON.stringify(dataToUse));
           }
         }
       } catch (error) {
         console.error(`Erro ao carregar dados do servidor para ${collectionName}:`, error);
-        // Fallback local se o servidor estiver inacessível
+        // Fallback local se o servidor estiver totalmente inacessível
         setData(localDataObj || initialData);
       } finally {
         setLoading(false);
