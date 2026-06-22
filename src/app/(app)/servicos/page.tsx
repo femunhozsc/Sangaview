@@ -114,6 +114,19 @@ const toTitleCase = (str: string) => {
   return str.replace(/\b\w/g, l => l.toUpperCase());
 };
 
+const getImageDimensions = (base64: string): Promise<{ width: number; height: number }> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64;
+    img.onload = () => {
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.onerror = () => {
+      resolve({ width: 50, height: 50 });
+    };
+  });
+};
+
 export default function ServicosPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingService, setEditingService] = useState<any | null>(null);
@@ -144,7 +157,7 @@ export default function ServicosPage() {
       // 2. Cabeçalho Corporativo
       if (logoBase64) {
         try {
-          doc.addImage(logoBase64, "PNG", 20, 15, 45, 18);
+          doc.addImage(logoBase64, "PNG", 20, 14, 52, 20.8);
         } catch (err) {
           console.error("Erro ao adicionar logo ao PDF:", err);
         }
@@ -167,6 +180,7 @@ export default function ServicosPage() {
       doc.text("CNPJ: 21.475.238/0001-43", 190, 22, { align: "right" });
       doc.text("Avenida Comendador Norberto Marcondes, 453", 190, 26, { align: "right" });
       doc.text("Campo Mourão, Paraná", 190, 30, { align: "right" });
+      doc.text("sangaautosocorro@hotmail.com", 190, 34, { align: "right" });
 
       // Linhas Decorativas (Grafite e Dourada)
       // Linha Grafite (espessa)
@@ -312,8 +326,7 @@ export default function ServicosPage() {
       drawSectionTitle("Resumo Financeiro");
       drawTwoColumnFields([
         { label: "Valor Cobrado", value: service.valor, isCurrency: true, hideIfZero: true },
-        { label: "Valor do Pedágio", value: service.valorPedagio, isCurrency: true, hideIfZero: true },
-        { label: "Lucro Estimado", value: lucroServico, isCurrency: true }
+        { label: "Valor do Pedágio", value: service.valorPedagio, isCurrency: true, hideIfZero: true }
       ]);
 
       // Detalhamento de Outros Custos
@@ -396,7 +409,27 @@ export default function ServicosPage() {
           
           try {
             const imgData = service.fotos[i];
-            doc.addImage(imgData, "JPEG", photoX, currentY, colWidth, colHeight);
+            const dims = await getImageDimensions(imgData);
+            
+            // Calculate contained dimensions to fit in colWidth x colHeight (50x50) box without distortion
+            let drawWidth = colWidth;
+            let drawHeight = colHeight;
+            const imgRatio = dims.width / dims.height;
+            const targetRatio = colWidth / colHeight;
+            
+            if (imgRatio > targetRatio) {
+              drawWidth = colWidth;
+              drawHeight = colWidth / imgRatio;
+            } else {
+              drawHeight = colHeight;
+              drawWidth = colHeight * imgRatio;
+            }
+            
+            // Center the image inside the cell boundaries
+            const offsetX = photoX + (colWidth - drawWidth) / 2;
+            const offsetY = currentY + (colHeight - drawHeight) / 2;
+
+            doc.addImage(imgData, "JPEG", offsetX, offsetY, drawWidth, drawHeight);
           } catch (e) {
             console.error("Erro ao adicionar imagem ao PDF:", e);
             doc.setDrawColor(200, 200, 200);
@@ -663,23 +696,23 @@ export default function ServicosPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -15 }}
                 transition={{ duration: 0.2 }}
-                className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl bg-card p-5 shadow-sm border border-border gap-4 cursor-pointer hover:shadow-md hover:border-primary/20 transition-all duration-200"
+                className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl bg-card p-5 shadow-sm border border-border gap-4 cursor-pointer hover:shadow-md hover:border-primary/20 transition-all duration-200 w-full overflow-hidden"
               >
-                <div className="flex gap-4">
+                <div className="flex gap-4 min-w-0 w-full">
                   <div className="rounded-full bg-blue-500/10 p-3 h-fit shrink-0">
                     <Truck className="h-6 w-6 text-blue-500" />
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-lg truncate">{servico.cliente} ({servico.veiculo})</h3>
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-base sm:text-lg truncate">{servico.cliente} ({servico.veiculo})</h3>
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1 min-w-0">
                       <MapPin className="h-3 w-3 shrink-0" />
                       <span className="truncate">{servico.origem || "Não informada"} → {servico.destino || "Não informado"}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
-                      <span className="bg-muted px-2 py-1 rounded-md">{servico.data} {servico.hora}</span>
-                      <span className="bg-muted px-2 py-1 rounded-md">{servico.kmPercorrido || 0} km rodados</span>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-2">
+                      <span className="bg-muted px-2 py-1 rounded-md shrink-0">{servico.data} {servico.hora}</span>
+                      <span className="bg-muted px-2 py-1 rounded-md shrink-0">{servico.kmPercorrido || 0} km rodados</span>
                       {servico.valorPedagio > 0 && (
-                        <span className="bg-red-500/10 text-red-500 px-2 py-1 rounded-md font-semibold">
+                        <span className="bg-red-500/10 text-red-500 px-2 py-1 rounded-md font-semibold shrink-0">
                           Pedágio: R$ {servico.valorPedagio}
                         </span>
                       )}

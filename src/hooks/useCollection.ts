@@ -31,39 +31,55 @@ export function useCollection(collectionName: string, initialData: any[] = []) {
     }
 
     async function loadFromServer() {
+      // 1. Ler do LocalStorage primeiro para uma resposta instantânea e persistente
+      let localDataObj: any[] | null = null;
+      if (typeof window !== "undefined") {
+        const localData = localStorage.getItem(`sanga_${collectionName}`);
+        if (localData) {
+          try {
+            localDataObj = JSON.parse(localData);
+          } catch {}
+        }
+      }
+
       try {
         const res = await fetch(`/api/data?collection=${collectionName}`);
         if (!res.ok) throw new Error("Erro ao buscar dados do servidor");
         const result = await res.json();
         
         if (result.initialized) {
-          setData(result.data);
+          // Se o localStorage local tiver mais registros que o servidor (ex: servidor resetou/wipou o arquivo temporário),
+          // nós mantemos os do localStorage e ressincronizamos para o servidor.
+          if (localDataObj && localDataObj.length > result.data.length) {
+            setData(localDataObj);
+            await fetch(`/api/data?collection=${collectionName}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ initData: localDataObj })
+            });
+          } else {
+            setData(result.data);
+            if (typeof window !== "undefined") {
+              localStorage.setItem(`sanga_${collectionName}`, JSON.stringify(result.data));
+            }
+          }
         } else {
-          // Inicializa a coleção no servidor com os dados mockados padrão
-          setData(initialData);
+          // Servidor não inicializado. Usar dados do localStorage ou mockados.
+          const dataToUse = localDataObj || initialData;
+          setData(dataToUse);
           await fetch(`/api/data?collection=${collectionName}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ initData: initialData })
+            body: JSON.stringify({ initData: dataToUse })
           });
+          if (typeof window !== "undefined" && !localDataObj) {
+            localStorage.setItem(`sanga_${collectionName}`, JSON.stringify(initialData));
+          }
         }
       } catch (error) {
         console.error(`Erro ao carregar dados do servidor para ${collectionName}:`, error);
-        // Fallback local caso o servidor esteja inacessível
-        if (typeof window !== "undefined") {
-          const localData = localStorage.getItem(`sanga_${collectionName}`);
-          if (localData) {
-            try {
-              setData(JSON.parse(localData));
-            } catch {
-              setData(initialData);
-            }
-          } else {
-            setData(initialData);
-          }
-        } else {
-          setData(initialData);
-        }
+        // Fallback local se o servidor estiver inacessível
+        setData(localDataObj || initialData);
       } finally {
         setLoading(false);
       }
@@ -75,11 +91,23 @@ export function useCollection(collectionName: string, initialData: any[] = []) {
       ...newDoc,
       createdAt: new Date().toISOString()
     };
+    const docWithId = {
+      id: newDoc.id || Math.floor(100000 + Math.random() * 900000).toString(),
+      ...docWithTimestamp
+    };
 
+    // 1. Atualiza o estado local e localStorage imediatamente (Local-first / Optimistic UI)
+    const updatedData = [docWithId, ...data];
+    setData(updatedData);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`sanga_${collectionName}`, JSON.stringify(updatedData));
+    }
+
+    // 2. Sincronia com Firestore (se configurado)
     if (isFirebaseConfigured && db) {
       try {
         await addDoc(collection(db, collectionName), {
-          ...newDoc,
+          ...docWithId,
           createdAt: new Date()
         });
         return;
@@ -88,34 +116,29 @@ export function useCollection(collectionName: string, initialData: any[] = []) {
       }
     }
 
-    // Central Server Sync
+    // 3. Sincronia com o Servidor Central
     try {
-      const res = await fetch(`/api/data?collection=${collectionName}`, {
+      await fetch(`/api/data?collection=${collectionName}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newDoc)
+        body: JSON.stringify(docWithId)
       });
-      if (!res.ok) throw new Error("Erro ao persistir no servidor");
-      const savedDoc = await res.json();
-      setData(prev => [savedDoc, ...prev]);
-      return;
     } catch (err) {
-      console.error("Erro de sincronia com servidor, salvando no localStorage:", err);
-    }
-
-    // Local Storage Fallback
-    if (typeof window !== "undefined") {
-      const docWithId = {
-        id: Math.floor(100000 + Math.random() * 900000).toString(),
-        ...docWithTimestamp
-      };
-      const updatedData = [docWithId, ...data];
-      setData(updatedData);
-      localStorage.setItem(`sanga_${collectionName}`, JSON.stringify(updatedData));
+      console.error("Erro de sincronia com servidor:", err);
     }
   };
 
   const updateDocument = async (id: string, updatedFields: any) => {
+    // 1. Atualiza o estado local e localStorage imediatamente
+    const updatedData = data.map(item => 
+      item.id === id ? { ...item, ...updatedFields } : item
+    );
+    setData(updatedData);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`sanga_${collectionName}`, JSON.stringify(updatedData));
+    }
+
+    // 2. Sincronia com Firestore
     if (isFirebaseConfigured && db) {
       try {
         const docRef = doc(db, collectionName, id);
@@ -126,31 +149,27 @@ export function useCollection(collectionName: string, initialData: any[] = []) {
       }
     }
 
-    // Central Server Sync
+    // 3. Sincronia com o Servidor Central
     try {
-      const res = await fetch(`/api/data?collection=${collectionName}`, {
+      await fetch(`/api/data?collection=${collectionName}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, fields: updatedFields })
       });
-      if (!res.ok) throw new Error("Erro ao atualizar no servidor");
-      setData(prev => prev.map(item => item.id === id ? { ...item, ...updatedFields } : item));
-      return;
     } catch (err) {
-      console.error("Erro ao atualizar no servidor, salvando no localStorage:", err);
-    }
-
-    // Local Storage Fallback
-    if (typeof window !== "undefined") {
-      const updatedData = data.map(item => 
-        item.id === id ? { ...item, ...updatedFields } : item
-      );
-      setData(updatedData);
-      localStorage.setItem(`sanga_${collectionName}`, JSON.stringify(updatedData));
+      console.error("Erro ao atualizar no servidor:", err);
     }
   };
 
   const deleteDocument = async (id: string) => {
+    // 1. Atualiza o estado local e localStorage imediatamente
+    const updatedData = data.filter(item => item.id !== id);
+    setData(updatedData);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`sanga_${collectionName}`, JSON.stringify(updatedData));
+    }
+
+    // 2. Sincronia com Firestore
     if (isFirebaseConfigured && db) {
       try {
         const docRef = doc(db, collectionName, id);
@@ -161,23 +180,13 @@ export function useCollection(collectionName: string, initialData: any[] = []) {
       }
     }
 
-    // Central Server Sync
+    // 3. Sincronia com o Servidor Central
     try {
-      const res = await fetch(`/api/data?collection=${collectionName}&id=${id}`, {
+      await fetch(`/api/data?collection=${collectionName}&id=${id}`, {
         method: "DELETE"
       });
-      if (!res.ok) throw new Error("Erro ao deletar no servidor");
-      setData(prev => prev.filter(item => item.id !== id));
-      return;
     } catch (err) {
-      console.error("Erro ao deletar no servidor, deletando no localStorage:", err);
-    }
-
-    // Local Storage Fallback
-    if (typeof window !== "undefined") {
-      const updatedData = data.filter(item => item.id !== id);
-      setData(updatedData);
-      localStorage.setItem(`sanga_${collectionName}`, JSON.stringify(updatedData));
+      console.error("Erro ao deletar no servidor:", err);
     }
   };
 
