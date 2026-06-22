@@ -40,6 +40,8 @@ type ServiceFormData = {
   destino: string;
   veiculo: string;
   placa: string;
+  frota: string;
+  tipo: string;
   kmInicial: number;
   kmFinal: number;
   valor: number;
@@ -49,8 +51,8 @@ type ServiceFormData = {
 };
 
 const initialMockServices = [
-  { id: "s1", cliente: "João Silva", telefone: "(11) 99999-8888", data: "2026-06-18", hora: "14:30", origem: "Centro", destino: "Vila Nova", veiculo: "Honda Civic", placa: "ABC-1234", kmInicial: 100, kmFinal: 125, kmPercorrido: 25, valor: 250, descricao: "Serviço padrão de guincho.", fotos: [], valorPedagio: 22.50, consumoLitros: 5, mediaConsumo: 5, outrosCustos: [{ descricao: "Estacionamento", valor: 15 }] },
-  { id: "s2", cliente: "Maria Oliveira", telefone: "(11) 98888-7777", data: "2026-06-17", hora: "10:15", origem: "Aeroporto", destino: "Jardins", veiculo: "Toyota Corolla", placa: "XYZ-9876", kmInicial: 200, kmFinal: 235, kmPercorrido: 35, valor: 380, descricao: "Carro com pane mecânica.", fotos: [], valorPedagio: 0, consumoLitros: 4, mediaConsumo: 8.75, outrosCustos: [] }
+  { id: "482019", cliente: "João Silva", telefone: "(11) 99999-8888", data: "2026-06-18", hora: "14:30", origem: "Centro", destino: "Vila Nova", veiculo: "Honda Civic", placa: "ABC-1234", frota: "Frota A", tipo: "Carro", kmInicial: 100, kmFinal: 125, kmPercorrido: 25, valor: 250, descricao: "Serviço padrão de guincho.", fotos: [], valorPedagio: 22.50, consumoLitros: 5, mediaConsumo: 5, outrosCustos: [{ descricao: "Estacionamento", valor: 15 }] },
+  { id: "937402", cliente: "Maria Oliveira", telefone: "(11) 98888-7777", data: "2026-06-17", hora: "10:15", origem: "Aeroporto", destino: "Jardins", veiculo: "Toyota Corolla", placa: "XYZ-9876", frota: "Frota B", tipo: "Carro", kmInicial: 200, kmFinal: 235, kmPercorrido: 35, valor: 380, descricao: "Carro com pane mecânica.", fotos: [], valorPedagio: 0, consumoLitros: 4, mediaConsumo: 8.75, outrosCustos: [] }
 ];
 
 // Helper to compress image using HTML5 Canvas
@@ -108,6 +110,10 @@ const fetchImageAsBase64 = async (url: string): Promise<string> => {
   }
 };
 
+const toTitleCase = (str: string) => {
+  return str.replace(/\b\w/g, l => l.toUpperCase());
+};
+
 export default function ServicosPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingService, setEditingService] = useState<any | null>(null);
@@ -161,7 +167,6 @@ export default function ServicosPage() {
       doc.text("CNPJ: 21.475.238/0001-43", 190, 22, { align: "right" });
       doc.text("Avenida Comendador Norberto Marcondes, 453", 190, 26, { align: "right" });
       doc.text("Campo Mourão, Paraná", 190, 30, { align: "right" });
-      doc.text("Email: sangaautosocorro@hotmail.com", 190, 34, { align: "right" });
 
       // Linhas Decorativas (Grafite e Dourada)
       // Linha Grafite (espessa)
@@ -277,6 +282,8 @@ export default function ServicosPage() {
       drawTwoColumnFields([
         { label: "Veículo", value: service.veiculo },
         { label: "Placa", value: service.placa },
+        { label: "Frota", value: service.frota },
+        { label: "Tipo", value: service.tipo },
         { label: "Data do Serviço", value: service.data },
         { label: "Horário", value: service.hora }
       ]);
@@ -434,7 +441,7 @@ export default function ServicosPage() {
   };
 
   const { data: servicos, loading, addDocument, updateDocument, deleteDocument } = useCollection("servicos", initialMockServices);
-  const { register, watch, handleSubmit, reset } = useForm<ServiceFormData>();
+  const { register, watch, handleSubmit, reset, setValue } = useForm<ServiceFormData>();
 
   const kmInicial = watch("kmInicial", 0);
   const kmFinal = watch("kmFinal", 0);
@@ -459,6 +466,8 @@ export default function ServicosPage() {
       destino: servico.destino || "",
       veiculo: servico.veiculo || "",
       placa: servico.placa || "",
+      frota: servico.frota || "",
+      tipo: servico.tipo || "",
       kmInicial: Number(servico.kmInicial) || 0,
       kmFinal: Number(servico.kmFinal) || 0,
       valor: Number(servico.valor) || 0,
@@ -556,6 +565,8 @@ export default function ServicosPage() {
         destino: data.destino || "",
         veiculo: data.veiculo || "",
         placa: data.placa || "",
+        frota: data.frota || "",
+        tipo: data.tipo || "",
         kmInicial: Number(data.kmInicial) || 0,
         kmFinal: Number(data.kmFinal) || 0,
         kmPercorrido: kmPercorrido,
@@ -615,6 +626,8 @@ export default function ServicosPage() {
               destino: "",
               veiculo: "",
               placa: "",
+              frota: "",
+              tipo: "",
               kmInicial: 0,
               kmFinal: 0,
               valor: 0,
@@ -703,16 +716,18 @@ export default function ServicosPage() {
       {/* Modal/Drawer de Formulário de Cadastro/Edição */}
       <AnimatePresence>
         {isFormOpen && (
-          <>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsFormOpen(false)}
-              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
             <motion.div 
-              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-x-0 bottom-0 z-40 mt-24 flex h-[90vh] flex-col rounded-t-[2rem] bg-background shadow-2xl overflow-hidden md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:h-auto md:max-h-[90vh] md:w-full md:max-w-2xl md:rounded-2xl"
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              transition={{ type: "spring", duration: 0.3 }}
+              className="relative z-50 flex w-full max-w-2xl h-[85vh] max-h-[90vh] flex-col rounded-2xl bg-background border border-border shadow-2xl overflow-hidden"
             >
               <div className="flex items-center justify-between border-b border-border p-6 bg-card">
                 <h2 className="text-xl font-bold">{editingService ? "Editar Serviço" : "Cadastrar Serviço"}</h2>
@@ -729,7 +744,16 @@ export default function ServicosPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Cliente</label>
-                      <input {...register("cliente", { required: true })} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" placeholder="Nome do cliente" />
+                      <input 
+                        {...register("cliente", { 
+                          required: true,
+                          onChange: (e) => {
+                            e.target.value = toTitleCase(e.target.value);
+                          }
+                        })} 
+                        className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" 
+                        placeholder="Nome do cliente" 
+                      />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Telefone</label>
@@ -751,22 +775,97 @@ export default function ServicosPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Origem</label>
-                      <input {...register("origem")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" placeholder="Endereço de coleta" />
+                      <div className="relative">
+                        <input 
+                          {...register("origem", {
+                            onChange: (e) => {
+                              e.target.value = toTitleCase(e.target.value);
+                            }
+                          })} 
+                          className="w-full rounded-xl border border-input bg-card pl-4 pr-10 py-3 text-sm outline-none focus:border-primary" 
+                          placeholder="Endereço de coleta" 
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setValue("origem", "Campo Mourão, Paraná")}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary p-1 rounded-md transition-colors"
+                          title="Preencher com Campo Mourão, Paraná"
+                        >
+                          <MapPin className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Destino</label>
-                      <input {...register("destino")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" placeholder="Endereço de entrega" />
+                      <div className="relative">
+                        <input 
+                          {...register("destino", {
+                            onChange: (e) => {
+                              e.target.value = toTitleCase(e.target.value);
+                            }
+                          })} 
+                          className="w-full rounded-xl border border-input bg-card pl-4 pr-10 py-3 text-sm outline-none focus:border-primary" 
+                          placeholder="Endereço de entrega" 
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setValue("destino", "Campo Mourão, Paraná")}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary p-1 rounded-md transition-colors"
+                          title="Preencher com Campo Mourão, Paraná"
+                        >
+                          <MapPin className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Veículo</label>
-                      <input {...register("veiculo")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" placeholder="Modelo do carro" />
+                      <input 
+                        {...register("veiculo", {
+                          onChange: (e) => {
+                            e.target.value = toTitleCase(e.target.value);
+                          }
+                        })} 
+                        className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" 
+                        placeholder="Modelo do carro" 
+                      />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Placa</label>
-                      <input {...register("placa")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" placeholder="ABC-1234" />
+                      <input 
+                        {...register("placa", {
+                          onChange: (e) => {
+                            e.target.value = e.target.value.toUpperCase();
+                          }
+                        })} 
+                        className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" 
+                        placeholder="ABC-1234" 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Frota</label>
+                      <input 
+                        {...register("frota")} 
+                        className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" 
+                        placeholder="Identificação da frota" 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Tipo</label>
+                      <input 
+                        {...register("tipo", {
+                          onChange: (e) => {
+                            e.target.value = toTitleCase(e.target.value);
+                          }
+                        })} 
+                        className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" 
+                        placeholder="Ex: Baú, Carreta, Guincho" 
+                      />
                     </div>
                   </div>
 
@@ -774,11 +873,31 @@ export default function ServicosPage() {
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-muted/30 p-4 rounded-2xl border border-border">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">KM Inicial</label>
-                      <input type="number" {...register("kmInicial")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" />
+                      <input 
+                        type="number" 
+                        {...register("kmInicial")} 
+                        onFocus={(e) => {
+                          if (e.target.value === "0" || Number(e.target.value) === 0) {
+                            setValue("kmInicial", "" as any);
+                          }
+                        }}
+                        placeholder="0"
+                        className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" 
+                      />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">KM Final</label>
-                      <input type="number" {...register("kmFinal")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" />
+                      <input 
+                        type="number" 
+                        {...register("kmFinal")} 
+                        onFocus={(e) => {
+                          if (e.target.value === "0" || Number(e.target.value) === 0) {
+                            setValue("kmFinal", "" as any);
+                          }
+                        }}
+                        placeholder="0"
+                        className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" 
+                      />
                     </div>
                     <div className="space-y-2 col-span-2 sm:col-span-1">
                       <label className="text-sm font-medium text-muted-foreground text-center block">Total Rodado</label>
@@ -792,11 +911,33 @@ export default function ServicosPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Valor Cobrado (R$)</label>
-                      <input type="number" step="0.01" {...register("valor")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary text-green-600 dark:text-green-500 font-bold text-lg" placeholder="0,00" />
+                      <input 
+                        type="number" 
+                        step="0.01" 
+                        {...register("valor")} 
+                        onFocus={(e) => {
+                          if (e.target.value === "0" || Number(e.target.value) === 0) {
+                            setValue("valor", "" as any);
+                          }
+                        }}
+                        className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary text-green-600 dark:text-green-500 font-bold text-lg" 
+                        placeholder="0,00" 
+                      />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Valor do Pedágio (R$)</label>
-                      <input type="number" step="0.01" {...register("valorPedagio")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary text-red-500 font-bold text-lg" placeholder="0,00" />
+                      <input 
+                        type="number" 
+                        step="0.01" 
+                        {...register("valorPedagio")} 
+                        onFocus={(e) => {
+                          if (e.target.value === "0" || Number(e.target.value) === 0) {
+                            setValue("valorPedagio", "" as any);
+                          }
+                        }}
+                        className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary text-red-500 font-bold text-lg" 
+                        placeholder="0,00" 
+                      />
                     </div>
                   </div>
 
@@ -804,7 +945,18 @@ export default function ServicosPage() {
                   <div className="grid grid-cols-2 gap-4 bg-muted/40 p-4 rounded-2xl border border-border">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Consumo (L)</label>
-                      <input type="number" step="0.1" {...register("consumoLitros")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary font-semibold" placeholder="0.0" />
+                      <input 
+                        type="number" 
+                        step="0.1" 
+                        {...register("consumoLitros")} 
+                        onFocus={(e) => {
+                          if (e.target.value === "0" || Number(e.target.value) === 0) {
+                            setValue("consumoLitros", "" as any);
+                          }
+                        }}
+                        className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary font-semibold" 
+                        placeholder="0.0" 
+                      />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-muted-foreground block text-center">Média de Consumo</label>
@@ -898,22 +1050,22 @@ export default function ServicosPage() {
                       </label>
                     </div>
                   </div>
+
+                  {/* Botão de Finalizar Cadastro */}
+                  <div className="pt-4">
+                    <button 
+                      type="submit" 
+                      disabled={isCompressing}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-4 text-sm font-bold text-primary-foreground shadow-md hover:opacity-90 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
+                    >
+                      <Save className="h-5 w-5" />
+                      {editingService ? "Salvar Alterações" : "Finalizar Cadastro"}
+                    </button>
+                  </div>
                 </form>
               </div>
-
-              <div className="border-t border-border p-6 bg-background rounded-b-2xl">
-                <button 
-                  type="submit" 
-                  form="service-form"
-                  disabled={isCompressing}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-4 text-sm font-bold text-primary-foreground shadow-md hover:opacity-90 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
-                >
-                  <Save className="h-5 w-5" />
-                  Salvar Serviço
-                </button>
-              </div>
             </motion.div>
-          </>
+          </div>
         )}
       </AnimatePresence>
 
@@ -1062,7 +1214,7 @@ export default function ServicosPage() {
                 </div>
 
                 {/* Dados Técnicos e Frota */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   <div className="bg-muted/30 p-3.5 rounded-xl border border-border/50">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Veículo</span>
                     <span className="text-sm font-semibold text-foreground block mt-1 truncate">{viewingService.veiculo || "-"}</span>
@@ -1070,6 +1222,14 @@ export default function ServicosPage() {
                   <div className="bg-muted/30 p-3.5 rounded-xl border border-border/50">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Placa</span>
                     <span className="text-sm font-semibold text-foreground block mt-1 truncate">{viewingService.placa || "-"}</span>
+                  </div>
+                  <div className="bg-muted/30 p-3.5 rounded-xl border border-border/50">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Frota</span>
+                    <span className="text-sm font-semibold text-foreground block mt-1 truncate">{viewingService.frota || "-"}</span>
+                  </div>
+                  <div className="bg-muted/30 p-3.5 rounded-xl border border-border/50">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Tipo</span>
+                    <span className="text-sm font-semibold text-foreground block mt-1 truncate">{viewingService.tipo || "-"}</span>
                   </div>
                   <div className="bg-muted/30 p-3.5 rounded-xl border border-border/50">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Data</span>

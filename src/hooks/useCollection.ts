@@ -106,7 +106,7 @@ export function useCollection(collectionName: string, initialData: any[] = []) {
     // Local Storage Fallback
     if (typeof window !== "undefined") {
       const docWithId = {
-        id: Math.random().toString(36).substring(2, 11),
+        id: Math.floor(100000 + Math.random() * 900000).toString(),
         ...docWithTimestamp
       };
       const updatedData = [docWithId, ...data];

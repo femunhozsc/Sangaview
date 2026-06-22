@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     const { data } = await readCollectionFile(collectionName);
     
     const newDoc = {
-      id: body.id || Math.random().toString(36).substring(2, 11),
+      id: body.id || Math.floor(100000 + Math.random() * 900000).toString(),
       ...body,
       createdAt: body.createdAt || new Date().toISOString()
     };
