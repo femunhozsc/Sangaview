@@ -716,18 +716,18 @@ export default function ServicosPage() {
       {/* Modal/Drawer de Formulário de Cadastro/Edição */}
       <AnimatePresence>
         {isFormOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[100] flex items-end justify-center md:items-center p-0 md:p-4">
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsFormOpen(false)}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
             <motion.div 
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              transition={{ type: "spring", duration: 0.3 }}
-              className="relative z-50 flex w-full max-w-2xl h-[85vh] max-h-[90vh] flex-col rounded-2xl bg-background border border-border shadow-2xl overflow-hidden"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="relative z-50 flex w-full h-[88vh] flex-col rounded-t-[2.5rem] rounded-b-none bg-background shadow-2xl overflow-hidden md:h-[85vh] md:max-h-[90vh] md:max-w-2xl md:rounded-2xl md:border md:border-border"
             >
               <div className="flex items-center justify-between border-b border-border p-6 bg-card">
                 <h2 className="text-xl font-bold">{editingService ? "Editar Serviço" : "Cadastrar Serviço"}</h2>
@@ -739,7 +739,7 @@ export default function ServicosPage() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 overscroll-contain bg-background space-y-6">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 overscroll-contain bg-background space-y-6">
                 <form id="service-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -761,7 +761,7 @@ export default function ServicosPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Data</label>
                       <input type="date" {...register("data")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" />
