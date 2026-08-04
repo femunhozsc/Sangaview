@@ -324,7 +324,10 @@ export default function ServicosPage() {
       const totalOutros = service.outrosCustos ? service.outrosCustos.reduce((acc: number, curr: any) => acc + curr.valor, 0) : 0;
       const lucroServico = (Number(service.valor) || 0) - (Number(service.valorPedagio) || 0) - totalOutros;
 
+      let financialDrawn = false;
+
       const drawFinancialSection = () => {
+        if (financialDrawn) return;
         drawTwoColumnFields(
           isOrcamento ? "Valores do Orçamento" : "Resumo Financeiro",
           [
@@ -332,6 +335,7 @@ export default function ServicosPage() {
             { label: "Valor do Pedágio", value: service.valorPedagio, isCurrency: true, hideIfZero: true }
           ]
         );
+        financialDrawn = true;
       };
 
       if (!isOrcamento) {
@@ -397,8 +401,15 @@ export default function ServicosPage() {
         currentY += 4;
       }
 
+      const hasImages = service.fotos && service.fotos.length > 0;
+
+      // Se for Orçamento e tiver imagens, desenha a seção de valores ANTES das imagens
+      if (isOrcamento && hasImages && !financialDrawn) {
+        drawFinancialSection();
+      }
+
       // Galeria de fotos (Grade de até 3 colunas)
-      if (service.fotos && service.fotos.length > 0) {
+      if (hasImages) {
         drawSectionTitle("Galeria de Imagens do Atendimento");
 
         const colWidth = 50;
@@ -456,8 +467,8 @@ export default function ServicosPage() {
         }
       }
 
-      // Se for Orçamento, insere a seção com o valor cobrado ao final de tudo
-      if (isOrcamento) {
+      // Se for Orçamento e não tiver imagens, a seção de valores fica ao final de tudo
+      if (isOrcamento && !financialDrawn) {
         drawFinancialSection();
       }
 
