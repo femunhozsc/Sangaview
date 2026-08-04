@@ -137,6 +137,7 @@ export default function ServicosPage() {
   const [tempPhotos, setTempPhotos] = useState<string[]>([]);
   const [isCompressing, setIsCompressing] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isOrcamentoOption, setIsOrcamentoOption] = useState(false);
 
   // States for Otros Custos
   const [tempOtherCosts, setTempOtherCosts] = useState<OtherCost[]>([]);
@@ -145,7 +146,7 @@ export default function ServicosPage() {
   const [otherCostValue, setOtherCostValue] = useState("");
   const [editingCostIndex, setEditingCostIndex] = useState<number | null>(null);
 
-  const generateServicePDF = async (service: any) => {
+  const generateServicePDF = async (service: any, isOrcamento: boolean = false) => {
     setIsGeneratingPDF(true);
     try {
       const { jsPDF } = await import("jspdf");
@@ -192,11 +193,11 @@ export default function ServicosPage() {
       doc.setLineWidth(0.6);
       doc.line(20, 39.2, 190, 39.2);
 
-      // Título do Relatório
+      // Título do Relatório / Orçamento
       doc.setFont("Helvetica", "bold");
       doc.setFontSize(15);
       doc.setTextColor(51, 51, 51);
-      doc.text("RELATÓRIO GERAL DO SERVIÇO", 105, 48, { align: "center" });
+      doc.text(isOrcamento ? "ORÇAMENTO DO SERVIÇO" : "RELATÓRIO GERAL DO SERVIÇO", 105, 48, { align: "center" });
 
       doc.setFont("Helvetica", "italic");
       doc.setFontSize(8.5);
@@ -323,11 +324,40 @@ export default function ServicosPage() {
       const totalOutros = service.outrosCustos ? service.outrosCustos.reduce((acc: number, curr: any) => acc + curr.valor, 0) : 0;
       const lucroServico = (Number(service.valor) || 0) - (Number(service.valorPedagio) || 0) - totalOutros;
 
-      drawSectionTitle("Resumo Financeiro");
-      drawTwoColumnFields([
-        { label: "Valor Cobrado", value: service.valor, isCurrency: true, hideIfZero: true },
-        { label: "Valor do Pedágio", value: service.valorPedagio, isCurrency: true, hideIfZero: true }
-      ]);
+      const drawFinancialSection = () => {
+        drawSectionTitle(isOrcamento ? "Valores do Orçamento" : "Resumo Financeiro");
+        drawTwoColumnFields([
+          { label: "Valor Cobrado", value: service.valor, isCurrency: true, hideIfZero: true },
+          { label: "Valor do Pedágio", value: service.valorPedagio, isCurrency: true, hideIfZero: true }
+        ]);
+
+        if (isOrcamento && service.valor > 0) {
+          if (currentY > 260) {
+            doc.addPage();
+            currentY = 20;
+          }
+          doc.setFillColor(245, 247, 250);
+          doc.setDrawColor(51, 51, 51);
+          doc.setLineWidth(0.6);
+          doc.roundedRect(20, currentY, 170, 16, 2, 2, "FD");
+
+          doc.setFont("Helvetica", "bold");
+          doc.setFontSize(11);
+          doc.setTextColor(51, 51, 51);
+          doc.text("VALOR TOTAL DO ORÇAMENTO:", 25, currentY + 10.5);
+
+          const valorStr = `R$ ${Number(service.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+          doc.setFontSize(13);
+          doc.setTextColor(34, 139, 34);
+          doc.text(valorStr, 185 - doc.getTextWidth(valorStr), currentY + 10.5);
+
+          currentY += 22;
+        }
+      };
+
+      if (!isOrcamento) {
+        drawFinancialSection();
+      }
 
       // Detalhamento de Outros Custos
       if (service.outrosCustos && service.outrosCustos.length > 0) {
@@ -447,6 +477,11 @@ export default function ServicosPage() {
         }
       }
 
+      // Se for Orçamento, insere a seção com o valor cobrado ao final de tudo
+      if (isOrcamento) {
+        drawFinancialSection();
+      }
+
       // Rodapé dinâmico em todas as páginas
       const totalPages = doc.getNumberOfPages();
       for (let p = 1; p <= totalPages; p++) {
@@ -458,12 +493,13 @@ export default function ServicosPage() {
         doc.setFont("Helvetica", "normal");
         doc.setFontSize(8);
         doc.setTextColor(150, 150, 150);
-        doc.text("Sanga Auto Socorro - Relatório de Serviço", 20, 287);
+        doc.text(`Sanga Auto Socorro - ${isOrcamento ? "Orçamento de Serviço" : "Relatório de Serviço"}`, 20, 287);
         doc.text(`Página ${p} de ${totalPages}`, 190, 287, { align: "right" });
       }
 
       // Salvar Documento
-      const filename = `relatorio-servico-${service.cliente.replace(/\s+/g, "-").toLowerCase()}-${service.id}.pdf`;
+      const prefix = isOrcamento ? "orcamento" : "relatorio";
+      const filename = `${prefix}-servico-${service.cliente.replace(/\s+/g, "-").toLowerCase()}-${service.id}.pdf`;
       doc.save(filename);
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
@@ -691,7 +727,10 @@ export default function ServicosPage() {
               <motion.div 
                 layout
                 key={servico.id} 
-                onClick={() => setViewingService(servico)}
+                onClick={() => {
+                  setViewingService(servico);
+                  setIsOrcamentoOption(false);
+                }}
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -15 }}
@@ -1346,10 +1385,19 @@ export default function ServicosPage() {
                   </div>
                 )}
 
-                {/* Botão Baixar PDF */}
-                <div className="pt-6 border-t border-border flex justify-end">
+                {/* Botão Baixar PDF e Opção Gerar Orçamento */}
+                <div className="pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <label className="flex items-center gap-2 text-sm font-medium text-foreground cursor-pointer select-none">
+                    <input 
+                      type="checkbox" 
+                      checked={isOrcamentoOption} 
+                      onChange={(e) => setIsOrcamentoOption(e.target.checked)}
+                      className="h-4 w-4 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer" 
+                    />
+                    <span>Gerar Orçamento</span>
+                  </label>
                   <button
-                    onClick={() => generateServicePDF(viewingService)}
+                    onClick={() => generateServicePDF(viewingService, isOrcamentoOption)}
                     disabled={isGeneratingPDF}
                     className="w-full sm:w-auto bg-primary text-primary-foreground font-semibold px-6 py-3 rounded-xl hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -1361,7 +1409,7 @@ export default function ServicosPage() {
                     ) : (
                       <>
                         <Download className="h-4 w-4" />
-                        Baixar PDF
+                        {isOrcamentoOption ? "Baixar Orçamento (PDF)" : "Baixar PDF"}
                       </>
                     )}
                   </button>
