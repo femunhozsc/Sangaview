@@ -32,6 +32,7 @@ type OtherCost = {
 };
 
 type ServiceFormData = {
+  empresa?: "Silvio" | "Elizia";
   cliente: string;
   telefone: string;
   data: string;
@@ -51,8 +52,8 @@ type ServiceFormData = {
 };
 
 const initialMockServices = [
-  { id: "482019", cliente: "João Silva", telefone: "(11) 99999-8888", data: "2026-06-18", hora: "14:30", origem: "Centro", destino: "Vila Nova", veiculo: "Honda Civic", placa: "ABC-1234", frota: "Frota A", tipo: "Carro", kmInicial: 100, kmFinal: 125, kmPercorrido: 25, valor: 250, descricao: "Serviço padrão de guincho.", fotos: [], valorPedagio: 22.50, consumoLitros: 5, mediaConsumo: 5, outrosCustos: [{ descricao: "Estacionamento", valor: 15 }] },
-  { id: "937402", cliente: "Maria Oliveira", telefone: "(11) 98888-7777", data: "2026-06-17", hora: "10:15", origem: "Aeroporto", destino: "Jardins", veiculo: "Toyota Corolla", placa: "XYZ-9876", frota: "Frota B", tipo: "Carro", kmInicial: 200, kmFinal: 235, kmPercorrido: 35, valor: 380, descricao: "Carro com pane mecânica.", fotos: [], valorPedagio: 0, consumoLitros: 4, mediaConsumo: 8.75, outrosCustos: [] }
+  { id: "482019", empresa: "Silvio", cliente: "João Silva", telefone: "(11) 99999-8888", data: "2026-06-18", hora: "14:30", origem: "Centro", destino: "Vila Nova", veiculo: "Honda Civic", placa: "ABC-1234", frota: "Frota A", tipo: "Carro", kmInicial: 100, kmFinal: 125, kmPercorrido: 25, valor: 250, descricao: "Serviço padrão de guincho.", fotos: [], valorPedagio: 22.50, consumoLitros: 5, mediaConsumo: 5, outrosCustos: [{ descricao: "Estacionamento", valor: 15 }] },
+  { id: "937402", empresa: "Elizia", cliente: "Maria Oliveira", telefone: "(11) 98888-7777", data: "2026-06-17", hora: "10:15", origem: "Aeroporto", destino: "Jardins", veiculo: "Toyota Corolla", placa: "XYZ-9876", frota: "Frota B", tipo: "Carro", kmInicial: 200, kmFinal: 235, kmPercorrido: 35, valor: 380, descricao: "Carro com pane mecânica.", fotos: [], valorPedagio: 0, consumoLitros: 4, mediaConsumo: 8.75, outrosCustos: [] }
 ];
 
 // Helper to compress image using HTML5 Canvas
@@ -171,15 +172,19 @@ export default function ServicosPage() {
       }
 
       // Dados da Empresa (Alinhado à direita)
+      const isElizia = service.empresa === "Elizia";
+      const razaoSocial = isElizia ? "45.792.697 ELIZIA MUNHOZ SANGA" : "21.475.238 SILVIO APARECIDO SANGA";
+      const cnpjStr = isElizia ? "CNPJ: 45.792.697/0001-81" : "CNPJ: 21.475.238/0001-43";
+
       doc.setFont("Helvetica", "bold");
       doc.setFontSize(9);
       doc.setTextColor(33, 33, 33);
-      doc.text("21.475.238 SILVIO APARECIDO SANGA", 190, 18, { align: "right" });
+      doc.text(razaoSocial, 190, 18, { align: "right" });
       
       doc.setFont("Helvetica", "normal");
       doc.setFontSize(7.5);
       doc.setTextColor(85, 85, 85);
-      doc.text("CNPJ: 21.475.238/0001-43", 190, 22, { align: "right" });
+      doc.text(cnpjStr, 190, 22, { align: "right" });
       doc.text("Avenida Comendador Norberto Marcondes, 453", 190, 26, { align: "right" });
       doc.text("Campo Mourão, Paraná", 190, 30, { align: "right" });
       doc.text("sangaautosocorro@hotmail.com", 190, 34, { align: "right" });
@@ -517,6 +522,7 @@ export default function ServicosPage() {
     setTempPhotos(servico.fotos || []);
     setTempOtherCosts(servico.outrosCustos || []);
     reset({
+      empresa: servico.empresa || "Silvio",
       cliente: servico.cliente,
       telefone: servico.telefone || "",
       data: servico.data || "",
@@ -616,6 +622,7 @@ export default function ServicosPage() {
   const onSubmit = async (data: ServiceFormData) => {
     try {
       const payload = {
+        empresa: data.empresa || "Silvio",
         cliente: data.cliente,
         telefone: data.telefone || "",
         data: data.data || new Date().toISOString().split("T")[0],
@@ -677,6 +684,7 @@ export default function ServicosPage() {
             setTempPhotos([]);
             setTempOtherCosts([]);
             reset({
+              empresa: "Silvio",
               cliente: "",
               telefone: "",
               data: new Date().toISOString().split("T")[0],
@@ -803,6 +811,34 @@ export default function ServicosPage() {
 
               <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 overscroll-contain bg-background space-y-6">
                 <form id="service-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                  {/* Opções de Empresa / Emissor */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Empresa / Emissor</label>
+                    <div className="grid grid-cols-2 gap-3 p-1.5 bg-muted/40 rounded-xl border border-border">
+                      <button
+                        type="button"
+                        onClick={() => setValue("empresa", "Silvio")}
+                        className={`py-2.5 px-4 text-sm font-bold rounded-lg transition-all cursor-pointer ${
+                          watch("empresa") === "Silvio" || !watch("empresa")
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted"
+                        }`}
+                      >
+                        Silvio
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setValue("empresa", "Elizia")}
+                        className={`py-2.5 px-4 text-sm font-bold rounded-lg transition-all cursor-pointer ${
+                          watch("empresa") === "Elizia"
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted"
+                        }`}
+                      >
+                        Elizia
+                      </button>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Cliente</label>
@@ -1276,7 +1312,11 @@ export default function ServicosPage() {
                 </div>
 
                 {/* Dados Técnicos e Frota */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="bg-muted/30 p-3.5 rounded-xl border border-border/50">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Empresa</span>
+                    <span className="text-sm font-semibold text-foreground block mt-1 truncate">{viewingService.empresa || "Silvio"}</span>
+                  </div>
                   <div className="bg-muted/30 p-3.5 rounded-xl border border-border/50">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Veículo</span>
                     <span className="text-sm font-semibold text-foreground block mt-1 truncate">{viewingService.veiculo || "-"}</span>
@@ -1289,6 +1329,9 @@ export default function ServicosPage() {
                     <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Frota</span>
                     <span className="text-sm font-semibold text-foreground block mt-1 truncate">{viewingService.frota || "-"}</span>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div className="bg-muted/30 p-3.5 rounded-xl border border-border/50">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Tipo</span>
                     <span className="text-sm font-semibold text-foreground block mt-1 truncate">{viewingService.tipo || "-"}</span>
