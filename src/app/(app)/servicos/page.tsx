@@ -111,7 +111,8 @@ const fetchImageAsBase64 = async (url: string): Promise<string> => {
 };
 
 const toTitleCase = (str: string) => {
-  return str.replace(/\b\w/g, l => l.toUpperCase());
+  if (!str) return "";
+  return str.replace(/(^|\s+)(\S)/g, (_, space, char) => space + char.toUpperCase());
 };
 
 const getImageDimensions = (base64: string): Promise<{ width: number; height: number }> => {
@@ -228,14 +229,17 @@ export default function ServicosPage() {
       };
 
       const drawTwoColumnFields = (
+        sectionTitle: string,
         fields: { label: string; value: any; isCurrency?: boolean; suffix?: string; hideIfZero?: boolean }[]
       ) => {
         const activeFields = fields.filter(f => {
           if (f.value === undefined || f.value === null || f.value === "") return false;
-          if (f.hideIfZero && (f.value === 0 || f.value === "0")) return false;
+          if (f.hideIfZero && (f.value === 0 || f.value === "0" || Number(f.value) === 0)) return false;
           return true;
         });
         if (activeFields.length === 0) return;
+
+        drawSectionTitle(sectionTitle);
 
         for (let i = 0; i < activeFields.length; i += 2) {
           if (currentY > 275) {
@@ -286,15 +290,13 @@ export default function ServicosPage() {
       };
 
       // 1. Dados do Cliente
-      drawSectionTitle("Dados do Cliente");
-      drawTwoColumnFields([
+      drawTwoColumnFields("Dados do Cliente", [
         { label: "Cliente", value: service.cliente },
         { label: "Telefone", value: service.telefone }
       ]);
 
       // 2. Frota & Detalhes
-      drawSectionTitle("Frota & Detalhes");
-      drawTwoColumnFields([
+      drawTwoColumnFields("Frota & Detalhes", [
         { label: "Veículo", value: service.veiculo },
         { label: "Placa", value: service.placa },
         { label: "Frota", value: service.frota },
@@ -303,9 +305,8 @@ export default function ServicosPage() {
         { label: "Horário", value: service.hora }
       ]);
 
-      // 3. Percurso & Desempenho
-      drawSectionTitle("Percurso & Trajeto");
-      drawTwoColumnFields([
+      // 3. Percurso & Trajeto
+      drawTwoColumnFields("Percurso & Trajeto", [
         { label: "Origem", value: service.origem },
         { label: "Destino", value: service.destino },
         { label: "KM Inicial", value: service.kmInicial, hideIfZero: true },
@@ -314,45 +315,23 @@ export default function ServicosPage() {
       ]);
 
       // 4. Consumo & Desempenho
-      drawSectionTitle("Consumo & Desempenho");
-      drawTwoColumnFields([
+      drawTwoColumnFields("Consumo & Desempenho", [
         { label: "Consumo de Combustível", value: service.consumoLitros, suffix: "Litros", hideIfZero: true },
         { label: "Média de Consumo", value: service.mediaConsumo, suffix: "km/L", hideIfZero: true }
       ]);
 
-      // 5. Resumo Financeiro
+      // 5. Resumo Financeiro / Valores do Orçamento
       const totalOutros = service.outrosCustos ? service.outrosCustos.reduce((acc: number, curr: any) => acc + curr.valor, 0) : 0;
       const lucroServico = (Number(service.valor) || 0) - (Number(service.valorPedagio) || 0) - totalOutros;
 
       const drawFinancialSection = () => {
-        drawSectionTitle(isOrcamento ? "Valores do Orçamento" : "Resumo Financeiro");
-        drawTwoColumnFields([
-          { label: "Valor Cobrado", value: service.valor, isCurrency: true, hideIfZero: true },
-          { label: "Valor do Pedágio", value: service.valorPedagio, isCurrency: true, hideIfZero: true }
-        ]);
-
-        if (isOrcamento && service.valor > 0) {
-          if (currentY > 260) {
-            doc.addPage();
-            currentY = 20;
-          }
-          doc.setFillColor(245, 247, 250);
-          doc.setDrawColor(51, 51, 51);
-          doc.setLineWidth(0.6);
-          doc.roundedRect(20, currentY, 170, 16, 2, 2, "FD");
-
-          doc.setFont("Helvetica", "bold");
-          doc.setFontSize(11);
-          doc.setTextColor(51, 51, 51);
-          doc.text("VALOR TOTAL DO ORÇAMENTO:", 25, currentY + 10.5);
-
-          const valorStr = `R$ ${Number(service.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
-          doc.setFontSize(13);
-          doc.setTextColor(34, 139, 34);
-          doc.text(valorStr, 185 - doc.getTextWidth(valorStr), currentY + 10.5);
-
-          currentY += 22;
-        }
+        drawTwoColumnFields(
+          isOrcamento ? "Valores do Orçamento" : "Resumo Financeiro",
+          [
+            { label: isOrcamento ? "Valor do Orçamento" : "Valor Cobrado", value: service.valor, isCurrency: true, hideIfZero: true },
+            { label: "Valor do Pedágio", value: service.valorPedagio, isCurrency: true, hideIfZero: true }
+          ]
+        );
       };
 
       if (!isOrcamento) {
