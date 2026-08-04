@@ -174,7 +174,7 @@ export default function ServicosPage() {
       doc.setFont("Helvetica", "bold");
       doc.setFontSize(9);
       doc.setTextColor(33, 33, 33);
-      doc.text("SANGA AUTO SOCORRO", 190, 18, { align: "right" });
+      doc.text("21.475.238 SILVIO APARECIDO SANGA", 190, 18, { align: "right" });
       
       doc.setFont("Helvetica", "normal");
       doc.setFontSize(7.5);
