@@ -54,9 +54,12 @@ type ServiceFormData = {
   descricao: string;
   valorPedagio: number;
   consumoLitros: number;
+  ocultarDistancia?: boolean;
+  ocultarConsumo?: boolean;
 };
 
 const initialMockServices: any[] = [];
+
 
 
 
@@ -377,20 +380,31 @@ export default function ServicosPage() {
         { label: "Horário", value: service.hora }
       ]);
 
-      // 3. Percurso & Trajeto
-      drawTwoColumnFields("Percurso & Trajeto", [
-        { label: "Origem", value: service.origem },
-        { label: "Destino", value: service.destino },
-        { label: "KM Inicial", value: service.kmInicial, hideIfZero: true },
-        { label: "KM Final", value: service.kmFinal, hideIfZero: true },
-        { label: "Distância Percorrida", value: service.kmPercorrido, suffix: "km", hideIfZero: true }
-      ]);
+      // 3. Percurso & Trajeto (exibido apenas se ocultarDistancia não for true)
+      if (!service.ocultarDistancia) {
+        drawTwoColumnFields("Percurso & Trajeto", [
+          { label: "Origem", value: service.origem },
+          { label: "Destino", value: service.destino },
+          { label: "KM Inicial", value: service.kmInicial, hideIfZero: true },
+          { label: "KM Final", value: service.kmFinal, hideIfZero: true },
+          { label: "Distância Percorrida", value: service.kmPercorrido, suffix: "km", hideIfZero: true }
+        ]);
+      } else {
+        // Se a distância/KMs for ocultada, podemos manter apenas a Origem e Destino se existirem
+        drawTwoColumnFields("Trajeto", [
+          { label: "Origem", value: service.origem },
+          { label: "Destino", value: service.destino }
+        ]);
+      }
 
-      // 4. Consumo & Desempenho
-      drawTwoColumnFields("Consumo & Desempenho", [
-        { label: "Consumo de Combustível", value: service.consumoLitros, suffix: "Litros", hideIfZero: true },
-        { label: "Média de Consumo", value: service.mediaConsumo, suffix: "km/L", hideIfZero: true }
-      ]);
+      // 4. Consumo & Desempenho (exibido apenas se ocultarConsumo não for true)
+      if (!service.ocultarConsumo) {
+        drawTwoColumnFields("Consumo & Desempenho", [
+          { label: "Consumo de Combustível", value: service.consumoLitros, suffix: "Litros", hideIfZero: true },
+          { label: "Média de Consumo", value: service.mediaConsumo, suffix: "km/L", hideIfZero: true }
+        ]);
+      }
+
 
       // Detalhamento de Outros Custos
       if (service.outrosCustos && service.outrosCustos.length > 0) {
@@ -606,6 +620,8 @@ export default function ServicosPage() {
       prazoPagamento: servico.prazoPagamento || "",
       valorPedagio: Number(servico.valorPedagio) || 0,
       consumoLitros: Number(servico.consumoLitros) || 0,
+      ocultarDistancia: !!servico.ocultarDistancia,
+      ocultarConsumo: !!servico.ocultarConsumo,
       descricao: servico.descricao || ""
     });
     setIsFormOpen(true);
@@ -714,6 +730,8 @@ export default function ServicosPage() {
         valorPedagio: Number(data.valorPedagio) || 0,
         consumoLitros: Number(data.consumoLitros) || 0,
         mediaConsumo: mediaConsumo,
+        ocultarDistancia: !!data.ocultarDistancia,
+        ocultarConsumo: !!data.ocultarConsumo,
         descricao: data.descricao || "",
         fotos: tempPhotos,
         outrosCustos: tempOtherCosts
@@ -783,10 +801,13 @@ export default function ServicosPage() {
               prazoPagamento: "",
               valorPedagio: 0,
               consumoLitros: 0,
+              ocultarDistancia: false,
+              ocultarConsumo: false,
               descricao: ""
             });
             setIsFormOpen(true);
           }}
+
           className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90 transition-opacity cursor-pointer animate-fade-in"
 
         >
@@ -1108,39 +1129,53 @@ export default function ServicosPage() {
                   </div>
 
                   {/* KMs */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-muted/30 p-4 rounded-2xl border border-border">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">KM Inicial</label>
-                      <input 
-                        type="number" 
-                        {...register("kmInicial")} 
-                        onFocus={(e) => {
-                          if (e.target.value === "0" || Number(e.target.value) === 0) {
-                            setValue("kmInicial", "" as any);
-                          }
-                        }}
-                        placeholder="0"
-                        className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" 
-                      />
+                  <div className="space-y-3 bg-muted/30 p-4 rounded-2xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold">Quilometragem (KM)</span>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground cursor-pointer select-none">
+                        <input 
+                          type="checkbox" 
+                          {...register("ocultarDistancia")} 
+                          className="h-4 w-4 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer" 
+                        />
+                        <span>Ocultar distância no documento</span>
+                      </label>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">KM Final</label>
-                      <input 
-                        type="number" 
-                        {...register("kmFinal")} 
-                        onFocus={(e) => {
-                          if (e.target.value === "0" || Number(e.target.value) === 0) {
-                            setValue("kmFinal", "" as any);
-                          }
-                        }}
-                        placeholder="0"
-                        className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" 
-                      />
-                    </div>
-                    <div className="space-y-2 col-span-2 sm:col-span-1">
-                      <label className="text-sm font-medium text-muted-foreground text-center block">Total Rodado</label>
-                      <div className="w-full rounded-xl bg-primary/10 text-primary px-4 py-3 text-sm font-bold border border-primary/20 text-center">
-                        {kmPercorrido} km
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">KM Inicial</label>
+                        <input 
+                          type="number" 
+                          {...register("kmInicial")} 
+                          onFocus={(e) => {
+                            if (e.target.value === "0" || Number(e.target.value) === 0) {
+                              setValue("kmInicial", "" as any);
+                            }
+                          }}
+                          placeholder="0"
+                          className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">KM Final</label>
+                        <input 
+                          type="number" 
+                          {...register("kmFinal")} 
+                          onFocus={(e) => {
+                            if (e.target.value === "0" || Number(e.target.value) === 0) {
+                              setValue("kmFinal", "" as any);
+                            }
+                          }}
+                          placeholder="0"
+                          className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" 
+                        />
+                      </div>
+                      <div className="space-y-2 col-span-2 sm:col-span-1">
+                        <label className="text-sm font-medium text-muted-foreground text-center block">Total Rodado</label>
+                        <div className="w-full rounded-xl bg-primary/10 text-primary px-4 py-3 text-sm font-bold border border-primary/20 text-center">
+                          {kmPercorrido} km
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1190,31 +1225,45 @@ export default function ServicosPage() {
                     </div>
                   </div>
 
-
                   {/* Consumo e Média */}
-                  <div className="grid grid-cols-2 gap-4 bg-muted/40 p-4 rounded-2xl border border-border">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Consumo (L)</label>
-                      <input 
-                        type="number" 
-                        step="0.1" 
-                        {...register("consumoLitros")} 
-                        onFocus={(e) => {
-                          if (e.target.value === "0" || Number(e.target.value) === 0) {
-                            setValue("consumoLitros", "" as any);
-                          }
-                        }}
-                        className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary font-semibold" 
-                        placeholder="0.0" 
-                      />
+                  <div className="space-y-3 bg-muted/40 p-4 rounded-2xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold">Consumo de Combustível</span>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground cursor-pointer select-none">
+                        <input 
+                          type="checkbox" 
+                          {...register("ocultarConsumo")} 
+                          className="h-4 w-4 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer" 
+                        />
+                        <span>Ocultar consumo no documento</span>
+                      </label>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-muted-foreground block text-center">Média de Consumo</label>
-                      <div className="w-full rounded-xl bg-blue-500/10 text-blue-500 px-4 py-3 text-sm font-bold border border-blue-500/20 text-center">
-                        {mediaConsumo} km/L
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Consumo (L)</label>
+                        <input 
+                          type="number" 
+                          step="0.1" 
+                          {...register("consumoLitros")} 
+                          onFocus={(e) => {
+                            if (e.target.value === "0" || Number(e.target.value) === 0) {
+                              setValue("consumoLitros", "" as any);
+                            }
+                          }}
+                          className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary font-semibold" 
+                          placeholder="0.0" 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-muted-foreground block text-center">Média de Consumo</label>
+                        <div className="w-full rounded-xl bg-blue-500/10 text-blue-500 px-4 py-3 text-sm font-bold border border-blue-500/20 text-center">
+                          {mediaConsumo} km/L
+                        </div>
                       </div>
                     </div>
                   </div>
+
 
                   {/* Outros Custos */}
                   <div className="space-y-3 bg-muted/20 p-4 rounded-2xl border border-border/80">
