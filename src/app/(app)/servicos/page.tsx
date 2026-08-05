@@ -754,11 +754,12 @@ export default function ServicosPage() {
       setTempPhotos([]);
       setTempOtherCosts([]);
       reset();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao salvar serviço:", error);
-      alert("Erro ao salvar o serviço.");
+      alert(`Erro ao salvar o serviço: ${error?.message || error || "Erro desconhecido"}`);
     }
   };
+
 
   const openFullscreenPhoto = (photo: string, e: React.MouseEvent) => {
     e.stopPropagation();

@@ -21,9 +21,13 @@ export function useCollection(collectionName: string, initialData: any[] = []) {
       return;
     }
 
+    let unsubscribe: () => void = () => {};
+
     try {
-      const q = query(collection(db, firestorePath), orderBy("createdAt", "desc"));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      const colRef = collection(db, firestorePath);
+      const q = query(colRef, orderBy("createdAt", "desc"));
+
+      unsubscribe = onSnapshot(q, (snapshot) => {
         const items = snapshot.docs.map(docItem => ({
           id: docItem.id,
           ...docItem.data(),
@@ -31,16 +35,30 @@ export function useCollection(collectionName: string, initialData: any[] = []) {
         setData(items);
         setLoading(false);
       }, (error) => {
-        console.error(`Erro ao buscar coleção ${firestorePath} do Firestore:`, error);
-        setLoading(false);
-      });
+        console.warn(`Erro com orderBy("createdAt") na coleção ${firestorePath}, tentando consulta sem ordenação:`, error);
+        // Fallback para buscar sem orderBy se faltar índice
+        const unsubFallback = onSnapshot(colRef, (snapshot) => {
+          const items = snapshot.docs.map(docItem => ({
+            id: docItem.id,
+            ...docItem.data(),
+          }));
+          setData(items);
+          setLoading(false);
+        }, (err2) => {
+          console.error("Erro no fallback de busca Firestore:", err2);
+          setLoading(false);
+        });
+        unsubscribe = unsubFallback;
 
-      return () => unsubscribe();
+      });
     } catch (err) {
       console.error("Erro ao configurar listener do Firestore:", err);
       setLoading(false);
     }
+
+    return () => unsubscribe();
   }, [collectionName, firestorePath, user?.uid]);
+
 
   const addDocument = async (newDoc: any) => {
     const { id: customId, ...dataWithoutId } = newDoc;
