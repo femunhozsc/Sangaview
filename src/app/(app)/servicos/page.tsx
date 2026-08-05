@@ -35,6 +35,10 @@ type ServiceFormData = {
   empresa?: "Silvio" | "Elizia";
   cliente: string;
   telefone: string;
+  emailCliente?: string;
+  cnpjCliente?: string;
+  enderecoCliente?: string;
+  cidadeCliente?: string;
   data: string;
   hora: string;
   origem: string;
@@ -46,12 +50,15 @@ type ServiceFormData = {
   kmInicial: number;
   kmFinal: number;
   valor: number;
+  prazoPagamento?: string;
   descricao: string;
   valorPedagio: number;
   consumoLitros: number;
 };
 
 const initialMockServices: any[] = [];
+
+
 
 
 // Helper to compress image using HTML5 Canvas for Firestore free tier (<1MB per document)
@@ -309,7 +316,11 @@ export default function ServicosPage() {
       // 1. Dados do Cliente
       drawTwoColumnFields("Dados do Cliente", [
         { label: "Cliente", value: service.cliente },
-        { label: "Telefone", value: service.telefone }
+        { label: "CNPJ / CPF", value: service.cnpjCliente },
+        { label: "Telefone", value: service.telefone },
+        { label: "E-mail", value: service.emailCliente },
+        { label: "Endereço", value: service.enderecoCliente },
+        { label: "Cidade / UF", value: service.cidadeCliente }
       ]);
 
       // 2. Frota & Detalhes
@@ -337,31 +348,11 @@ export default function ServicosPage() {
         { label: "Média de Consumo", value: service.mediaConsumo, suffix: "km/L", hideIfZero: true }
       ]);
 
-      // 5. Resumo Financeiro / Valores do Orçamento
-      const totalOutros = service.outrosCustos ? service.outrosCustos.reduce((acc: number, curr: any) => acc + curr.valor, 0) : 0;
-      const lucroServico = (Number(service.valor) || 0) - (Number(service.valorPedagio) || 0) - totalOutros;
-
-      let financialDrawn = false;
-
-      const drawFinancialSection = () => {
-        if (financialDrawn) return;
-        drawTwoColumnFields(
-          isOrcamento ? "Valores do Orçamento" : "Resumo Financeiro",
-          [
-            { label: isOrcamento ? "Valor do Orçamento" : "Valor Cobrado", value: service.valor, isCurrency: true, hideIfZero: true },
-            { label: "Valor do Pedágio", value: service.valorPedagio, isCurrency: true, hideIfZero: true }
-          ]
-        );
-        financialDrawn = true;
-      };
-
-      if (!isOrcamento) {
-        drawFinancialSection();
-      }
-
       // Detalhamento de Outros Custos
       if (service.outrosCustos && service.outrosCustos.length > 0) {
         drawSectionTitle("Detalhamento de Outros Custos");
+        const totalOutros = service.outrosCustos.reduce((acc: number, curr: any) => acc + curr.valor, 0);
+
         service.outrosCustos.forEach((c: any) => {
           if (currentY > 275) {
             doc.addPage();
@@ -399,7 +390,7 @@ export default function ServicosPage() {
         currentY += 8;
       }
 
-      // Descrição
+      // 5. Descrição das Atividades
       if (service.descricao && service.descricao.trim() !== "") {
         drawSectionTitle("Descrição das Atividades");
         doc.setFont("Helvetica", "normal");
@@ -418,12 +409,18 @@ export default function ServicosPage() {
         currentY += 4;
       }
 
+      // 6. Resumo Financeiro & Prazo de Pagamento (SEMPRE após Descrição e antes das Fotos)
+      drawTwoColumnFields(
+        isOrcamento ? "Valores do Orçamento" : "Resumo Financeiro",
+        [
+          { label: isOrcamento ? "Valor do Orçamento" : "Valor Cobrado", value: service.valor, isCurrency: true, hideIfZero: true },
+          { label: "Valor do Pedágio", value: service.valorPedagio, isCurrency: true, hideIfZero: true },
+          { label: "Prazo de Pagamento", value: service.prazoPagamento }
+        ]
+      );
+
       const hasImages = service.fotos && service.fotos.length > 0;
 
-      // Se for Orçamento e tiver imagens, desenha a seção de valores ANTES das imagens
-      if (isOrcamento && hasImages && !financialDrawn) {
-        drawFinancialSection();
-      }
 
       // Galeria de fotos (Grade de até 3 colunas)
       if (hasImages) {
@@ -484,10 +481,6 @@ export default function ServicosPage() {
         }
       }
 
-      // Se for Orçamento e não tiver imagens, a seção de valores fica ao final de tudo
-      if (isOrcamento && !financialDrawn) {
-        drawFinancialSection();
-      }
 
       // Rodapé dinâmico em todas as páginas
       const totalPages = doc.getNumberOfPages();
@@ -537,6 +530,10 @@ export default function ServicosPage() {
       empresa: servico.empresa || "Silvio",
       cliente: servico.cliente,
       telefone: servico.telefone || "",
+      emailCliente: servico.emailCliente || "",
+      cnpjCliente: servico.cnpjCliente || "",
+      enderecoCliente: servico.enderecoCliente || "",
+      cidadeCliente: servico.cidadeCliente || "",
       data: servico.data || "",
       hora: servico.hora || "",
       origem: servico.origem || "",
@@ -614,10 +611,8 @@ export default function ServicosPage() {
     };
 
     if (editingCostIndex !== null) {
-      // Edit existing cost
       setTempOtherCosts(prev => prev.map((item, idx) => idx === editingCostIndex ? newCost : item));
     } else {
-      // Add new cost
       setTempOtherCosts(prev => [...prev, newCost]);
     }
 
@@ -633,11 +628,18 @@ export default function ServicosPage() {
 
   const onSubmit = async (data: ServiceFormData) => {
     try {
+      const serviceDateStr = data.data || new Date().toISOString().split("T")[0];
+      const dateDigits = serviceDateStr.replace(/-/g, ""); // Ex: 2026-08-05 -> 20260805
+
       const payload = {
         empresa: data.empresa || "Silvio",
         cliente: data.cliente,
         telefone: data.telefone || "",
-        data: data.data || new Date().toISOString().split("T")[0],
+        emailCliente: data.emailCliente || "",
+        cnpjCliente: data.cnpjCliente || "",
+        enderecoCliente: data.enderecoCliente || "",
+        cidadeCliente: data.cidadeCliente || "",
+        data: serviceDateStr,
         hora: data.hora || "",
         origem: data.origem || "",
         destino: data.destino || "",
@@ -661,7 +663,12 @@ export default function ServicosPage() {
         await updateDocument(editingService.id, payload);
         alert("Serviço atualizado com sucesso!");
       } else {
-        await addDocument(payload);
+        // Gera o ID sequencial elegante no formato: AAAAMMDD1 (ano/mês/dia + ordem do dia)
+        const sameDayServices = servicos.filter(s => s.data === serviceDateStr);
+        const nextOrderNumber = sameDayServices.length + 1;
+        const generatedId = `${dateDigits}${nextOrderNumber}`;
+
+        await addDocument({ id: generatedId, ...payload });
         alert("Serviço salvo com sucesso!");
       }
       
@@ -675,6 +682,7 @@ export default function ServicosPage() {
       alert("Erro ao salvar o serviço.");
     }
   };
+
 
   const openFullscreenPhoto = (photo: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -866,10 +874,33 @@ export default function ServicosPage() {
                       />
                     </div>
                     <div className="space-y-2">
+                      <label className="text-sm font-medium">CNPJ / CPF do Cliente</label>
+                      <input {...register("cnpjCliente")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" placeholder="00.000.000/0001-00" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
                       <label className="text-sm font-medium">Telefone</label>
                       <input {...register("telefone")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" placeholder="(00) 00000-0000" />
                     </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">E-mail do Cliente</label>
+                      <input type="email" {...register("emailCliente")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" placeholder="cliente@email.com" />
+                    </div>
                   </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Endereço do Cliente</label>
+                      <input {...register("enderecoCliente")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" placeholder="Rua, Número, Bairro" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Cidade / Estado</label>
+                      <input {...register("cidadeCliente")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" placeholder="Campo Mourão, PR" />
+                    </div>
+                  </div>
+
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -1035,6 +1066,17 @@ export default function ServicosPage() {
                       />
                     </div>
                     <div className="space-y-2">
+                      <label className="text-sm font-medium">Prazo de Pagamento</label>
+                      <input 
+                        {...register("prazoPagamento")} 
+                        className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" 
+                        placeholder="Ex: 30 dias, À vista, Faturado 15/30 dias" 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="space-y-2">
                       <label className="text-sm font-medium">Valor do Pedágio (R$)</label>
                       <input 
                         type="number" 
@@ -1050,6 +1092,7 @@ export default function ServicosPage() {
                       />
                     </div>
                   </div>
+
 
                   {/* Consumo e Média */}
                   <div className="grid grid-cols-2 gap-4 bg-muted/40 p-4 rounded-2xl border border-border">
@@ -1360,7 +1403,14 @@ export default function ServicosPage() {
                       <Clock className="h-3.5 w-3.5 shrink-0" /> {viewingService.hora || "-"}
                     </span>
                   </div>
+                  {viewingService.prazoPagamento && (
+                    <div className="bg-emerald-500/10 p-3.5 rounded-xl border border-emerald-500/20">
+                      <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider block">Prazo Pagamento</span>
+                      <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 block mt-1 truncate">{viewingService.prazoPagamento}</span>
+                    </div>
+                  )}
                 </div>
+
 
                 {/* Quilometragem */}
                 <div className="grid grid-cols-3 gap-4 bg-muted/40 p-4 rounded-xl border border-border/60">
