@@ -1136,8 +1136,7 @@ export default function ServicosPage() {
                       <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground cursor-pointer select-none">
                         <input 
                           type="checkbox" 
-                          checked={!!watch("ocultarDistancia")}
-                          onChange={(e) => setValue("ocultarDistancia", e.target.checked)}
+                          {...register("ocultarDistancia")}
                           className="h-4 w-4 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer" 
                         />
                         <span>Ocultar distância no documento</span>
@@ -1234,13 +1233,13 @@ export default function ServicosPage() {
                       <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground cursor-pointer select-none">
                         <input 
                           type="checkbox" 
-                          checked={!!watch("ocultarConsumo")}
-                          onChange={(e) => setValue("ocultarConsumo", e.target.checked)}
+                          {...register("ocultarConsumo")}
                           className="h-4 w-4 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer" 
                         />
                         <span>Ocultar consumo no documento</span>
                       </label>
                     </div>
+
 
 
                     <div className="grid grid-cols-2 gap-4">
