@@ -120,8 +120,9 @@ const fetchImageAsBase64 = async (url: string): Promise<string> => {
 
 const toTitleCase = (str: string) => {
   if (!str) return "";
-  return str.toLowerCase().replace(/(^|\s+)(\S)/g, (_, space, char) => space + char.toUpperCase());
+  return str.replace(/(^|\s+)(\S)/g, (_, space, char) => space + char.toUpperCase());
 };
+
 
 const formatPhone = (val: string) => {
   const digits = val.replace(/\D/g, "").slice(0, 11);
@@ -537,14 +538,26 @@ export default function ServicosPage() {
         doc.setFont("Helvetica", "normal");
         doc.setFontSize(8);
         doc.setTextColor(150, 150, 150);
-        doc.text(`Sanga Auto Socorro - ${isOrcamento ? "Orçamento de Serviço" : "Relatório de Serviço"}`, 20, 287);
+        doc.text(`Sanga Auto Socorro - ${docTitle}`, 20, 287);
         doc.text(`Página ${p} de ${totalPages}`, 190, 287, { align: "right" });
       }
 
-      // Salvar Documento
-      const prefix = isOrcamento ? "orcamento" : "relatorio";
-      const filename = `${prefix}-servico-${service.cliente.replace(/\s+/g, "-").toLowerCase()}-${service.id}.pdf`;
+      // Salvar Documento com nome formatado (Título + Cliente/Empresa + ID)
+      const sanitizeForFilename = (str: string) => {
+        return str
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "") // remove acentos
+          .replace(/[^a-zA-Z0-9\s-]/g, "") // remove caracteres especiais
+          .trim()
+          .replace(/\s+/g, "-")
+          .toLowerCase();
+      };
+
+      const titlePart = sanitizeForFilename(docTitle);
+      const clientPart = sanitizeForFilename(service.cliente || service.empresa || "servico");
+      const filename = `${titlePart}-${clientPart}-${service.id}.pdf`;
       doc.save(filename);
+
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
       alert("Ocorreu um erro ao gerar o PDF.");
