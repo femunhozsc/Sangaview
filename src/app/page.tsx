@@ -3,18 +3,26 @@
 import { useEffect, ViewTransition } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { useAuth } from "@/context/AuthContext";
 
 export default function SplashScreen() {
   const router = useRouter();
+  const { user, loading } = useAuth();
 
   useEffect(() => {
-    // Redireciona para o dashboard após 1.5 segundos
+    if (loading) return;
+
     const timer = setTimeout(() => {
-      router.push("/dashboard");
+      if (user) {
+        router.push("/dashboard");
+      } else {
+        router.push("/login");
+      }
     }, 1500);
 
     return () => clearTimeout(timer);
-  }, [router]);
+  }, [router, user, loading]);
+
 
   return (
     <div className="flex h-screen w-full flex-col items-center justify-between bg-graphite p-8 select-none">

@@ -1,5 +1,6 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -16,13 +17,15 @@ export const isFirebaseConfigured = !!(
   process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
 );
 
-let app;
+let app: any = null;
 let db: any = null;
+let auth: any = null;
 
 if (isFirebaseConfigured) {
   try {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
     db = getFirestore(app);
+    auth = getAuth(app);
   } catch (error) {
     console.error("Erro ao inicializar o Firebase:", error);
   }
@@ -30,6 +33,7 @@ if (isFirebaseConfigured) {
   console.warn("Firebase não configurado. O app rodará no modo de demonstração com armazenamento local (LocalStorage).");
 }
 
-export { db };
+export { db, auth };
+
 
 
