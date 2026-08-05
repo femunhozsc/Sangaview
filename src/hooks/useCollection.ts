@@ -95,8 +95,8 @@ export function useCollection(collectionName: string, initialData: any[] = []) {
   const updateDocument = async (id: string, updatedFields: any) => {
     if (isFirebaseConfigured && db && user?.uid) {
       try {
-        const itemRef = doc(db, firestorePath, id);
-        await updateDoc(itemRef, updatedFields);
+        const itemRef = doc(db, firestorePath, String(id));
+        await setDoc(itemRef, updatedFields, { merge: true });
       } catch (error) {
         console.error(`Erro ao atualizar documento no Firestore (${firestorePath}):`, error);
         throw error;
@@ -105,6 +105,7 @@ export function useCollection(collectionName: string, initialData: any[] = []) {
       setData(prev => prev.map(item => item.id === id ? { ...item, ...updatedFields } : item));
     }
   };
+
 
   const deleteDocument = async (id: string) => {
     if (isFirebaseConfigured && db && user?.uid) {
