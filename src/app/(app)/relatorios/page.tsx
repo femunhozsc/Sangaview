@@ -388,6 +388,8 @@ export default function RelatoriosPage() {
           <BarChart3 className="h-6 w-6 text-primary" /> Relatórios Operacionais
         </h1>
         <p className="text-sm text-muted-foreground">Histórico financeiro consolidado com despesas e pedágios integrados.</p>
+
+
       </div>
 
       {loading ? (

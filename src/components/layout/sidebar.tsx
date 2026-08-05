@@ -2,7 +2,7 @@
 
 import { useTheme } from "next-themes";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   LayoutDashboard, 
@@ -15,9 +15,11 @@ import {
   X,
   BarChart3,
   Bell,
-  ShoppingCart
+  ShoppingCart,
+  LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 const menuItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -30,6 +32,7 @@ const menuItems = [
   { name: "Lista de Compras", href: "/lista-compras", icon: ShoppingCart },
 ];
 
+
 interface SidebarProps {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
@@ -37,7 +40,19 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const { logout, user } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setIsOpen(false);
+      router.push("/login");
+    } catch (error) {
+      console.error("Erro ao sair da conta:", error);
+    }
+  };
 
   return (
     <>
@@ -82,7 +97,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
               })}
             </nav>
 
-            <div className="border-t border-border p-4">
+            <div className="border-t border-border p-4 space-y-2">
               <button
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                 className="flex w-full items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted shadow-sm"
@@ -103,6 +118,14 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   />
                 </div>
               </button>
+
+              <button
+                onClick={handleLogout}
+                className="flex w-full items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/20 shadow-sm cursor-pointer"
+              >
+                <LogOut className="h-5 w-5" />
+                <span>Sair da Conta ({user?.name || "Usuário"})</span>
+              </button>
             </div>
           </motion.aside>
         )}
@@ -110,3 +133,4 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     </>
   );
 }
+

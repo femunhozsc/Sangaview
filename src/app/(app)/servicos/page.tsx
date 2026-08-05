@@ -138,6 +138,7 @@ export default function ServicosPage() {
   const [isCompressing, setIsCompressing] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isOrcamentoOption, setIsOrcamentoOption] = useState(false);
+  const [customTitle, setCustomTitle] = useState("");
 
   // States for Otros Custos
   const [tempOtherCosts, setTempOtherCosts] = useState<OtherCost[]>([]);
@@ -146,7 +147,7 @@ export default function ServicosPage() {
   const [otherCostValue, setOtherCostValue] = useState("");
   const [editingCostIndex, setEditingCostIndex] = useState<number | null>(null);
 
-  const generateServicePDF = async (service: any, isOrcamento: boolean = false) => {
+  const generateServicePDF = async (service: any, isOrcamento: boolean = false, customTitleInput: string = "") => {
     setIsGeneratingPDF(true);
     try {
       const { jsPDF } = await import("jspdf");
@@ -197,11 +198,22 @@ export default function ServicosPage() {
       doc.setLineWidth(0.6);
       doc.line(20, 39.2, 190, 39.2);
 
-      // Título do Relatório / Orçamento
+      // Determina o Título do Documento
+      let docTitle = "";
+      if (customTitleInput && customTitleInput.trim() !== "") {
+        docTitle = customTitleInput.trim().toUpperCase();
+      } else if (isOrcamento) {
+        docTitle = "ORÇAMENTO DO SERVIÇO";
+      } else {
+        docTitle = "ORDEM DE SERVIÇO (O.S.)";
+      }
+
+      // Título do Documento
       doc.setFont("Helvetica", "bold");
       doc.setFontSize(15);
       doc.setTextColor(51, 51, 51);
-      doc.text(isOrcamento ? "ORÇAMENTO DO SERVIÇO" : "RELATÓRIO GERAL DO SERVIÇO", 105, 48, { align: "center" });
+      doc.text(docTitle, 105, 48, { align: "center" });
+
 
       doc.setFont("Helvetica", "italic");
       doc.setFontSize(8.5);
@@ -1416,35 +1428,52 @@ export default function ServicosPage() {
                   </div>
                 )}
 
-                {/* Botão Baixar PDF e Opção Gerar Orçamento */}
-                <div className="pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <label className="flex items-center gap-2 text-sm font-medium text-foreground cursor-pointer select-none">
-                    <input 
-                      type="checkbox" 
-                      checked={isOrcamentoOption} 
-                      onChange={(e) => setIsOrcamentoOption(e.target.checked)}
-                      className="h-4 w-4 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer" 
-                    />
-                    <span>Gerar Orçamento</span>
-                  </label>
-                  <button
-                    onClick={() => generateServicePDF(viewingService, isOrcamentoOption)}
-                    disabled={isGeneratingPDF}
-                    className="w-full sm:w-auto bg-primary text-primary-foreground font-semibold px-6 py-3 rounded-xl hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isGeneratingPDF ? (
-                      <>
-                        <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent animate-spin rounded-full" />
-                        Gerando PDF...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="h-4 w-4" />
-                        {isOrcamentoOption ? "Baixar Orçamento (PDF)" : "Baixar PDF"}
-                      </>
-                    )}
-                  </button>
+                {/* Botão Baixar PDF, Opção Gerar Orçamento e Campo Personalizado */}
+                <div className="pt-6 border-t border-border flex flex-col gap-4">
+                  <div className="flex flex-wrap items-center gap-4">
+                    <label className="flex items-center gap-2 text-sm font-medium text-foreground cursor-pointer select-none">
+                      <input 
+                        type="checkbox" 
+                        checked={isOrcamentoOption} 
+                        onChange={(e) => setIsOrcamentoOption(e.target.checked)}
+                        className="h-4 w-4 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer" 
+                      />
+                      <span>Gerar Orçamento</span>
+                    </label>
+
+                    <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase">Título:</span>
+                      <input
+                        type="text"
+                        placeholder="Personalizado"
+                        value={customTitle}
+                        onChange={(e) => setCustomTitle(e.target.value.toUpperCase())}
+                        className="w-full rounded-xl bg-muted/50 px-3 py-2 text-xs font-semibold text-foreground uppercase border border-border/40 shadow-inner outline-none transition-all focus:border-primary focus:bg-background placeholder:text-muted-foreground/50 placeholder:normal-case"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => generateServicePDF(viewingService, isOrcamentoOption, customTitle)}
+                      disabled={isGeneratingPDF}
+                      className="w-full sm:w-auto bg-primary text-primary-foreground font-semibold px-6 py-3 rounded-xl hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isGeneratingPDF ? (
+                        <>
+                          <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent animate-spin rounded-full" />
+                          Gerando PDF...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="h-4 w-4" />
+                          {customTitle.trim() ? `Baixar (${customTitle.trim()})` : isOrcamentoOption ? "Baixar Orçamento (PDF)" : "Baixar O.S. (PDF)"}
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
+
               </div>
             </motion.div>
           </>
