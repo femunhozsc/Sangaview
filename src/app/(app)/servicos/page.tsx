@@ -54,7 +54,7 @@ type ServiceFormData = {
 const initialMockServices: any[] = [];
 
 
-// Helper to compress image using HTML5 Canvas
+// Helper to compress image using HTML5 Canvas for Firestore free tier (<1MB per document)
 const compressImage = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -64,7 +64,7 @@ const compressImage = (file: File): Promise<string> => {
       img.src = event.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        const max_size = 800;
+        const max_size = 500; // Reduzido de 800 para 500px para caber no Firestore grátis
         let width = img.width;
         let height = img.height;
 
@@ -83,7 +83,8 @@ const compressImage = (file: File): Promise<string> => {
         canvas.height = height;
         const ctx = canvas.getContext("2d");
         ctx?.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.6);
+        // Qualidade 0.4 gera imagens super leves (~25-45KB cada) ideais para documentos do Firestore
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.4);
         resolve(dataUrl);
       };
       img.onerror = (err) => reject(err);
@@ -91,6 +92,7 @@ const compressImage = (file: File): Promise<string> => {
     reader.onerror = (err) => reject(err);
   });
 };
+
 
 const fetchImageAsBase64 = async (url: string): Promise<string> => {
   try {
