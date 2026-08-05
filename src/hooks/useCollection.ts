@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { collection, onSnapshot, query, orderBy, addDoc, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, addDoc, setDoc, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db, isFirebaseConfigured } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 
@@ -43,28 +43,36 @@ export function useCollection(collectionName: string, initialData: any[] = []) {
   }, [collectionName, firestorePath, user?.uid]);
 
   const addDocument = async (newDoc: any) => {
+    const { id: customId, ...dataWithoutId } = newDoc;
     const docWithTimestamp = {
-      ...newDoc,
+      ...dataWithoutId,
       createdAt: new Date().toISOString()
     };
 
     if (isFirebaseConfigured && db && user?.uid) {
       try {
-        const docRef = await addDoc(collection(db, firestorePath), docWithTimestamp);
-        return { id: docRef.id, ...docWithTimestamp };
+        if (customId) {
+          const customDocRef = doc(db, firestorePath, String(customId));
+          await setDoc(customDocRef, docWithTimestamp);
+          return { id: String(customId), ...docWithTimestamp };
+        } else {
+          const docRef = await addDoc(collection(db, firestorePath), docWithTimestamp);
+          return { id: docRef.id, ...docWithTimestamp };
+        }
       } catch (error) {
         console.error(`Erro ao adicionar documento no Firestore (${firestorePath}):`, error);
         throw error;
       }
     } else {
       const docWithId = {
-        id: newDoc.id || Math.floor(100000 + Math.random() * 900000).toString(),
+        id: customId || Math.floor(100000 + Math.random() * 900000).toString(),
         ...docWithTimestamp
       };
       setData(prev => [docWithId, ...prev]);
       return docWithId;
     }
   };
+
 
   const updateDocument = async (id: string, updatedFields: any) => {
     if (isFirebaseConfigured && db && user?.uid) {
