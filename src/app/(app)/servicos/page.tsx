@@ -380,30 +380,30 @@ export default function ServicosPage() {
         { label: "Horário", value: service.hora }
       ]);
 
-      // 3. Percurso & Trajeto (exibido apenas se ocultarDistancia não for true)
+      // 3. Percurso & Trajeto (exibido conforme ocultarDistancia)
+      const percursoFields: any[] = [
+        { label: "Origem", value: service.origem },
+        { label: "Destino", value: service.destino }
+      ];
+
       if (!service.ocultarDistancia) {
-        drawTwoColumnFields("Percurso & Trajeto", [
-          { label: "Origem", value: service.origem },
-          { label: "Destino", value: service.destino },
+        percursoFields.push(
           { label: "KM Inicial", value: service.kmInicial, hideIfZero: true },
           { label: "KM Final", value: service.kmFinal, hideIfZero: true },
           { label: "Distância Percorrida", value: service.kmPercorrido, suffix: "km", hideIfZero: true }
-        ]);
-      } else {
-        // Se a distância/KMs for ocultada, podemos manter apenas a Origem e Destino se existirem
-        drawTwoColumnFields("Trajeto", [
-          { label: "Origem", value: service.origem },
-          { label: "Destino", value: service.destino }
-        ]);
+        );
       }
 
-      // 4. Consumo & Desempenho (exibido apenas se ocultarConsumo não for true)
+      drawTwoColumnFields("Percurso & Trajeto", percursoFields);
+
+      // 4. Consumo & Desempenho (exibido apenas se ocultarConsumo não for verdadeiro)
       if (!service.ocultarConsumo) {
         drawTwoColumnFields("Consumo & Desempenho", [
           { label: "Consumo de Combustível", value: service.consumoLitros, suffix: "Litros", hideIfZero: true },
           { label: "Média de Consumo", value: service.mediaConsumo, suffix: "km/L", hideIfZero: true }
         ]);
       }
+
 
 
       // Detalhamento de Outros Custos
