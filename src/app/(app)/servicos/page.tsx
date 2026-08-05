@@ -120,8 +120,37 @@ const fetchImageAsBase64 = async (url: string): Promise<string> => {
 
 const toTitleCase = (str: string) => {
   if (!str) return "";
-  return str.replace(/(^|\s+)(\S)/g, (_, space, char) => space + char.toUpperCase());
+  return str.toLowerCase().replace(/(^|\s+)(\S)/g, (_, space, char) => space + char.toUpperCase());
 };
+
+const formatPhone = (val: string) => {
+  const digits = val.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 2) return digits ? `(${digits}` : "";
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+};
+
+const formatCpfCnpj = (val: string) => {
+  const digits = val.replace(/\D/g, "");
+  if (digits.length <= 11) {
+    // Formato CPF: 000.000.000-00
+    const d = digits.slice(0, 11);
+    if (d.length <= 3) return d;
+    if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+    if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+    return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+  } else {
+    // Formato CNPJ: 00.000.000/0001-00
+    const d = digits.slice(0, 14);
+    if (d.length <= 2) return d;
+    if (d.length <= 5) return `${d.slice(0, 2)}.${d.slice(2)}`;
+    if (d.length <= 8) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5)}`;
+    if (d.length <= 12) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8)}`;
+    return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+  }
+};
+
 
 const getImageDimensions = (base64: string): Promise<{ width: number; height: number }> => {
   return new Promise((resolve) => {
@@ -537,6 +566,7 @@ export default function ServicosPage() {
     : 0;
 
   const handleEdit = (servico: any, e: React.MouseEvent) => {
+
     e.stopPropagation();
     setEditingService(servico);
     setTempPhotos(servico.fotos || []);
@@ -560,6 +590,7 @@ export default function ServicosPage() {
       kmInicial: Number(servico.kmInicial) || 0,
       kmFinal: Number(servico.kmFinal) || 0,
       valor: Number(servico.valor) || 0,
+      prazoPagamento: servico.prazoPagamento || "",
       valorPedagio: Number(servico.valorPedagio) || 0,
       consumoLitros: Number(servico.consumoLitros) || 0,
       descricao: servico.descricao || ""
@@ -648,12 +679,12 @@ export default function ServicosPage() {
 
       const payload = {
         empresa: data.empresa || "Silvio",
-        cliente: data.cliente,
+        cliente: toTitleCase(data.cliente),
         telefone: data.telefone || "",
         emailCliente: data.emailCliente || "",
         cnpjCliente: data.cnpjCliente || "",
-        enderecoCliente: data.enderecoCliente || "",
-        cidadeCliente: data.cidadeCliente || "",
+        enderecoCliente: toTitleCase(data.enderecoCliente || ""),
+        cidadeCliente: toTitleCase(data.cidadeCliente || ""),
         data: serviceDateStr,
         hora: data.hora || "",
         origem: data.origem || "",
@@ -666,6 +697,7 @@ export default function ServicosPage() {
         kmFinal: Number(data.kmFinal) || 0,
         kmPercorrido: kmPercorrido,
         valor: Number(data.valor) || 0,
+        prazoPagamento: data.prazoPagamento || "",
         valorPedagio: Number(data.valorPedagio) || 0,
         consumoLitros: Number(data.consumoLitros) || 0,
         mediaConsumo: mediaConsumo,
@@ -678,7 +710,6 @@ export default function ServicosPage() {
         await updateDocument(editingService.id, payload);
         alert("Serviço atualizado com sucesso!");
       } else {
-        // Gera o ID sequencial elegante no formato: AAAAMMDD1 (ano/mês/dia + ordem do dia)
         const sameDayServices = servicos.filter(s => s.data === serviceDateStr);
         const nextOrderNumber = sameDayServices.length + 1;
         const generatedId = `${dateDigits}${nextOrderNumber}`;
@@ -697,7 +728,6 @@ export default function ServicosPage() {
       alert("Erro ao salvar o serviço.");
     }
   };
-
 
   const openFullscreenPhoto = (photo: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -722,6 +752,10 @@ export default function ServicosPage() {
               empresa: "Silvio",
               cliente: "",
               telefone: "",
+              emailCliente: "",
+              cnpjCliente: "",
+              enderecoCliente: "",
+              cidadeCliente: "",
               data: new Date().toISOString().split("T")[0],
               hora: new Date().toTimeString().split(" ")[0].slice(0, 5),
               origem: "",
@@ -733,6 +767,7 @@ export default function ServicosPage() {
               kmInicial: 0,
               kmFinal: 0,
               valor: 0,
+              prazoPagamento: "",
               valorPedagio: 0,
               consumoLitros: 0,
               descricao: ""
@@ -740,6 +775,7 @@ export default function ServicosPage() {
             setIsFormOpen(true);
           }}
           className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90 transition-opacity cursor-pointer animate-fade-in"
+
         >
           <Plus className="h-4 w-4" />
           <span>Novo Serviço</span>
@@ -890,14 +926,30 @@ export default function ServicosPage() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">CNPJ / CPF do Cliente</label>
-                      <input {...register("cnpjCliente")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" placeholder="00.000.000/0001-00" />
+                      <input 
+                        {...register("cnpjCliente", {
+                          onChange: (e) => {
+                            e.target.value = formatCpfCnpj(e.target.value);
+                          }
+                        })} 
+                        className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary font-mono" 
+                        placeholder="00.000.000/0001-00 ou 000.000.000-00" 
+                      />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Telefone</label>
-                      <input {...register("telefone")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" placeholder="(00) 00000-0000" />
+                      <input 
+                        {...register("telefone", {
+                          onChange: (e) => {
+                            e.target.value = formatPhone(e.target.value);
+                          }
+                        })} 
+                        className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary font-mono" 
+                        placeholder="(00) 00000-0000" 
+                      />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">E-mail do Cliente</label>
@@ -908,13 +960,30 @@ export default function ServicosPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Endereço do Cliente</label>
-                      <input {...register("enderecoCliente")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" placeholder="Rua, Número, Bairro" />
+                      <input 
+                        {...register("enderecoCliente", {
+                          onChange: (e) => {
+                            e.target.value = toTitleCase(e.target.value);
+                          }
+                        })} 
+                        className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" 
+                        placeholder="Rua, Número, Bairro" 
+                      />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Cidade / Estado</label>
-                      <input {...register("cidadeCliente")} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" placeholder="Campo Mourão, PR" />
+                      <input 
+                        {...register("cidadeCliente", {
+                          onChange: (e) => {
+                            e.target.value = toTitleCase(e.target.value);
+                          }
+                        })} 
+                        className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" 
+                        placeholder="Campo Mourão, PR" 
+                      />
                     </div>
                   </div>
+
 
 
                   <div className="grid grid-cols-2 gap-4">
