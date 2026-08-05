@@ -254,7 +254,7 @@ export default function ServicosPage() {
 
       const drawTwoColumnFields = (
         sectionTitle: string,
-        fields: { label: string; value: any; isCurrency?: boolean; suffix?: string; hideIfZero?: boolean }[]
+        fields: { label: string; value: any; isCurrency?: boolean; suffix?: string; hideIfZero?: boolean; fullWidth?: boolean }[]
       ) => {
         const activeFields = fields.filter(f => {
           if (f.value === undefined || f.value === null || f.value === "") return false;
@@ -265,14 +265,16 @@ export default function ServicosPage() {
 
         drawSectionTitle(sectionTitle);
 
-        for (let i = 0; i < activeFields.length; i += 2) {
+        let idx = 0;
+        while (idx < activeFields.length) {
           if (currentY > 275) {
             doc.addPage();
             currentY = 20;
           }
 
-          const field1 = activeFields[i];
-          const field2 = activeFields[i + 1];
+          const field1 = activeFields[idx];
+          const isFull1 = field1.fullWidth;
+          const field2 = !isFull1 ? activeFields[idx + 1] : undefined;
 
           // Coluna 1
           let valStr1 = String(field1.value);
@@ -281,16 +283,23 @@ export default function ServicosPage() {
           } else if (field1.suffix) {
             valStr1 = `${field1.value} ${field1.suffix}`;
           }
+
           doc.setFont("Helvetica", "bold");
           doc.setFontSize(9.5);
           doc.setTextColor(102, 102, 102);
           doc.text(`${field1.label}:`, 20, currentY);
           const w1 = doc.getTextWidth(`${field1.label}: `);
+          
           doc.setFont("Helvetica", "normal");
           doc.setTextColor(33, 33, 33);
-          doc.text(valStr1, 20 + w1, currentY);
+
+          const maxW1 = (isFull1 || !field2) ? (170 - w1) : (80 - w1);
+          const lines1 = doc.splitTextToSize(valStr1, Math.max(maxW1, 30));
+          doc.text(lines1, 20 + w1, currentY);
+          let h1 = lines1.length * 5;
 
           // Coluna 2
+          let h2 = 0;
           if (field2) {
             let valStr2 = String(field2.value);
             if (field2.isCurrency) {
@@ -303,12 +312,16 @@ export default function ServicosPage() {
             doc.setTextColor(102, 102, 102);
             doc.text(`${field2.label}:`, 105, currentY);
             const w2 = doc.getTextWidth(`${field2.label}: `);
+            
             doc.setFont("Helvetica", "normal");
             doc.setTextColor(33, 33, 33);
-            doc.text(valStr2, 105 + w2, currentY);
+            const lines2 = doc.splitTextToSize(valStr2, Math.max(85 - w2, 30));
+            doc.text(lines2, 105 + w2, currentY);
+            h2 = lines2.length * 5;
           }
 
-          currentY += 6;
+          currentY += Math.max(h1, h2, 6);
+          idx += (field2 ? 2 : 1);
         }
         currentY += 2;
       };
@@ -319,9 +332,10 @@ export default function ServicosPage() {
         { label: "CNPJ / CPF", value: service.cnpjCliente },
         { label: "Telefone", value: service.telefone },
         { label: "E-mail", value: service.emailCliente },
-        { label: "Endereço", value: service.enderecoCliente },
-        { label: "Cidade / UF", value: service.cidadeCliente }
+        { label: "Endereço", value: service.enderecoCliente, fullWidth: true },
+        { label: "Cidade / UF", value: service.cidadeCliente, fullWidth: true }
       ]);
+
 
       // 2. Frota & Detalhes
       drawTwoColumnFields("Frota & Detalhes", [
@@ -409,15 +423,16 @@ export default function ServicosPage() {
         currentY += 4;
       }
 
-      // 6. Resumo Financeiro & Prazo de Pagamento (SEMPRE após Descrição e antes das Fotos)
+      // 6. Resumo Financeiro & Prazo de Pagamento (Lado a lado: Valor Cobrado e Prazo de Pagamento)
       drawTwoColumnFields(
         isOrcamento ? "Valores do Orçamento" : "Resumo Financeiro",
         [
           { label: isOrcamento ? "Valor do Orçamento" : "Valor Cobrado", value: service.valor, isCurrency: true, hideIfZero: true },
-          { label: "Valor do Pedágio", value: service.valorPedagio, isCurrency: true, hideIfZero: true },
-          { label: "Prazo de Pagamento", value: service.prazoPagamento }
+          { label: "Prazo de Pagamento", value: service.prazoPagamento },
+          { label: "Valor do Pedágio", value: service.valorPedagio, isCurrency: true, hideIfZero: true }
         ]
       );
+
 
       const hasImages = service.fotos && service.fotos.length > 0;
 
