@@ -36,13 +36,17 @@ export default function LoginPage() {
       }
       router.push("/dashboard");
     } catch (err: any) {
+      console.error("Erro no Firebase Auth:", err);
       if (err.code === "auth/invalid-credential" || err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
         setError("CPF ou senha incorretos.");
       } else if (err.code === "auth/email-already-in-use") {
         setError("Este CPF já está cadastrado. Faça login.");
+      } else if (err.code === "auth/operation-not-allowed") {
+        setError("O método E-mail/Senha não está ativado no seu Console do Firebase. Acesse Authentication > Sign-in method e ative 'E-mail/senha'.");
       } else {
         setError(err.message || "Ocorreu um erro ao realizar a autenticação.");
       }
+
     } finally {
       setSubmitting(false);
     }

@@ -14,10 +14,8 @@ type MaintenanceFormData = {
   veiculo: string;
 };
 
-const initialMockMaintenance = [
-  { id: "m1", tipo: "Troca de Óleo e Filtros", veiculo: "Guincho 02", data: "2026-06-10", km: 85000, valor: 450, observacoes: "Revisão preventiva" },
-  { id: "m2", tipo: "Revisão de Freios", veiculo: "Guincho 01", data: "2026-06-05", km: 144200, valor: 650, observacoes: "Pastilhas e discos trocados" }
-];
+const initialMockMaintenance: any[] = [];
+
 
 export default function ManutencoesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);

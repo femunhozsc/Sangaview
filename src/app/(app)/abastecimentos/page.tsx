@@ -13,10 +13,8 @@ type FuelFormData = {
   veiculo: string;
 };
 
-const initialMockFuel = [
-  { id: "a1", veiculo: "Guincho 01", location: "Posto Ipiranga", data: "2026-06-18", km: 145200, litros: 60, valor: 350 },
-  { id: "a2", veiculo: "Guincho 02", location: "Posto Shell", data: "2026-06-17", km: 85400, litros: 50, valor: 310 }
-];
+const initialMockFuel: any[] = [];
+
 
 export default function AbastecimentosPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);

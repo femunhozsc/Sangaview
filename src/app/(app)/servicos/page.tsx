@@ -51,10 +51,8 @@ type ServiceFormData = {
   consumoLitros: number;
 };
 
-const initialMockServices = [
-  { id: "482019", empresa: "Silvio", cliente: "João Silva", telefone: "(11) 99999-8888", data: "2026-06-18", hora: "14:30", origem: "Centro", destino: "Vila Nova", veiculo: "Honda Civic", placa: "ABC-1234", frota: "Frota A", tipo: "Carro", kmInicial: 100, kmFinal: 125, kmPercorrido: 25, valor: 250, descricao: "Serviço padrão de guincho.", fotos: [], valorPedagio: 22.50, consumoLitros: 5, mediaConsumo: 5, outrosCustos: [{ descricao: "Estacionamento", valor: 15 }] },
-  { id: "937402", empresa: "Elizia", cliente: "Maria Oliveira", telefone: "(11) 98888-7777", data: "2026-06-17", hora: "10:15", origem: "Aeroporto", destino: "Jardins", veiculo: "Toyota Corolla", placa: "XYZ-9876", frota: "Frota B", tipo: "Carro", kmInicial: 200, kmFinal: 235, kmPercorrido: 35, valor: 380, descricao: "Carro com pane mecânica.", fotos: [], valorPedagio: 0, consumoLitros: 4, mediaConsumo: 8.75, outrosCustos: [] }
-];
+const initialMockServices: any[] = [];
+
 
 // Helper to compress image using HTML5 Canvas
 const compressImage = (file: File): Promise<string> => {

@@ -22,25 +22,11 @@ import {
 } from "lucide-react";
 import { useCollection } from "@/hooks/useCollection";
 
-// Mock data fallbacks
-const initialMockServices = [
-  { id: "482019", cliente: "João Silva", telefone: "(11) 99999-8888", data: "2026-06-18", hora: "14:30", origem: "Centro", destino: "Vila Nova", veiculo: "Honda Civic", placa: "ABC-1234", frota: "Frota A", tipo: "Carro", kmInicial: 100, kmFinal: 125, kmPercorrido: 25, valor: 250, descricao: "Serviço padrão de guincho.", fotos: [], valorPedagio: 22.50, consumoLitros: 5, mediaConsumo: 5, outrosCustos: [{ descricao: "Estacionamento", valor: 15 }] },
-  { id: "937402", cliente: "Maria Oliveira", telefone: "(11) 98888-7777", data: "2026-06-17", hora: "10:15", origem: "Aeroporto", destino: "Jardins", veiculo: "Toyota Corolla", placa: "XYZ-9876", frota: "Frota B", tipo: "Carro", kmInicial: 200, kmFinal: 235, kmPercorrido: 35, valor: 380, descricao: "Carro com pane mecânica.", fotos: [], valorPedagio: 0, consumoLitros: 4, mediaConsumo: 8.75, outrosCustos: [] },
-  { id: "284910", cliente: "Carlos Souza", telefone: "(11) 97777-6666", data: "2026-05-12", hora: "08:00", origem: "Bairro Alto", destino: "Oficina Central", veiculo: "Fiat Palio", placa: "MNO-4567", frota: "Frota A", tipo: "Carro", kmInicial: 50, kmFinal: 70, kmPercorrido: 20, valor: 180, descricao: "Bateria arriada.", fotos: [], valorPedagio: 0, consumoLitros: 0, mediaConsumo: 0, outrosCustos: [] }
-];
-const initialMockFuel = [
-  { id: "a1", veiculo: "Guincho 01", location: "Posto Ipiranga", data: "2026-06-18", km: 145200, litros: 60, valor: 350 },
-  { id: "a2", veiculo: "Guincho 02", location: "Posto Shell", data: "2026-06-17", km: 85400, litros: 50, valor: 310 },
-  { id: "a3", veiculo: "Guincho 01", location: "Posto Petrobras", data: "2026-05-15", km: 144500, litros: 55, valor: 320 }
-];
-const initialMockMaintenance = [
-  { id: "m1", tipo: "Troca de Óleo e Filtros", veiculo: "Guincho 02", data: "2026-06-10", km: 85000, valor: 450, observacoes: "Revisão preventiva" },
-  { id: "m2", tipo: "Revisão de Freios", veiculo: "Guincho 01", data: "2026-05-05", km: 144200, valor: 650, observacoes: "Pastilhas e discos trocados" }
-];
-const initialMockShopping = [
-  { id: "c1", item: "Cabo de aço para Guincho", quantidade: "2 un", comprado: false, preco: 150 },
-  { id: "c2", item: "Óleo hidráulico 68", quantidade: "20 L", comprado: true, preco: 350, compradoEm: "2026-06-18" }
-];
+const initialMockServices: any[] = [];
+const initialMockFuel: any[] = [];
+const initialMockMaintenance: any[] = [];
+const initialMockShopping: any[] = [];
+
 
 const monthNames: { [key: string]: string } = {
   "01": "Janeiro", "02": "Fevereiro", "03": "Março", "04": "Abril", "05": "Maio", "06": "Junho",

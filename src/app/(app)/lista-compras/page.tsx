@@ -13,11 +13,8 @@ type ShoppingItem = {
   compradoEm?: string | null;
 };
 
-const initialMockShopping = [
-  { id: "c1", item: "Cabo de aço para Guincho", quantidade: "2 un", comprado: false, preco: 150 },
-  { id: "c2", item: "Óleo hidráulico 68", quantidade: "20 L", comprado: true, preco: 350, compradoEm: "2026-06-18" },
-  { id: "c3", item: "Cinta de reboque 10 ton", quantidade: "1 un", comprado: false, preco: 80 }
-];
+const initialMockShopping: any[] = [];
+
 
 export default function ListaComprasPage() {
   const { data: compras, loading, addDocument, updateDocument, deleteDocument } = useCollection("compras", initialMockShopping);

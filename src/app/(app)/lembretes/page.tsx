@@ -11,11 +11,8 @@ type Reminder = {
   data: string;
 };
 
-const initialMockReminders = [
-  { id: "r1", texto: "Revisar óleo do Guincho 01", feita: false, data: "2026-06-19" },
-  { id: "r2", texto: "Cobrar faturamento do cliente João Silva", feita: true, data: "2026-06-18" },
-  { id: "r3", texto: "Renovar seguro do Guincho 02", feita: false, data: "2026-06-25" }
-];
+const initialMockReminders: any[] = [];
+
 
 export default function LembretesPage() {
   const { data: lembretes, loading, addDocument, updateDocument, deleteDocument } = useCollection("lembretes", initialMockReminders);

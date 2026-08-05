@@ -19,22 +19,11 @@ const itemVariants = {
   show: { y: 0, opacity: 1, transition: { type: "spring" as const, stiffness: 300, damping: 24 } }
 };
 
-// Mock data fallbacks
-const initialMockServices = [
-  { id: "s1", cliente: "João Silva", veiculo: "Honda Civic", valor: 250, data: "2026-06-18", hora: "14:30" },
-  { id: "s2", cliente: "Maria Oliveira", veiculo: "Toyota Corolla", valor: 380, data: "2026-06-17", hora: "10:15" }
-];
-const initialMockFuel = [
-  { id: "a1", veiculo: "Guincho 01", location: "Posto Ipiranga", valor: 350, data: "2026-06-18" },
-  { id: "a2", veiculo: "Guincho 02", location: "Posto Shell", valor: 310, data: "2026-06-17" }
-];
-const initialMockMaintenance = [
-  { id: "m1", tipo: "Troca de Óleo e Filtros", veiculo: "Guincho 02", valor: 450, data: "2026-06-10" }
-];
-const initialMockShopping = [
-  { id: "c1", item: "Cabo de aço para Guincho", quantidade: "2 un", comprado: false, preco: 150 },
-  { id: "c2", item: "Óleo hidráulico 68", quantidade: "20 L", comprado: true, preco: 350, compradoEm: "2026-06-18" }
-];
+const initialMockServices: any[] = [];
+const initialMockFuel: any[] = [];
+const initialMockMaintenance: any[] = [];
+const initialMockShopping: any[] = [];
+
 
 export default function FinanceiroPage() {
   const { data: servicos, loading: loadingS } = useCollection("servicos", initialMockServices);
