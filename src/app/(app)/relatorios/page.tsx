@@ -20,7 +20,10 @@ import {
   DollarSign,
   Coins,
   Save,
-  Download
+  Download,
+  Phone,
+  Clock,
+  Eye
 } from "lucide-react";
 import { useCollection } from "@/hooks/useCollection";
 
@@ -44,6 +47,19 @@ const fetchImageAsBase64 = async (url: string): Promise<string> => {
     console.error("Erro ao converter imagem em base64:", error);
     return "";
   }
+};
+
+const getImageDimensions = (base64: string): Promise<{ width: number; height: number }> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      resolve({ width: img.width, height: img.height });
+    };
+    img.onerror = () => {
+      resolve({ width: 1, height: 1 });
+    };
+    img.src = base64;
+  });
 };
 
 
@@ -234,6 +250,7 @@ export default function RelatoriosPage() {
       const { jsPDF } = await import("jspdf");
       const doc = new jsPDF();
 
+      const isAnnual = monthNum === "total";
       const monthNameStr = monthNames[monthNum] || monthNum;
       const logoBase64 = await fetchImageAsBase64("/Sanga-Logo-Docs.png");
 
@@ -278,14 +295,19 @@ export default function RelatoriosPage() {
       doc.setFont("Helvetica", "bold");
       doc.setFontSize(14);
       doc.setTextColor(51, 51, 51);
-      const titleStr = `RESUMO OPERACIONAL DE ${monthNameStr.toUpperCase()} DE ${yearNum}`;
-      doc.text(titleStr, 105, 48, { align: "center" });
+      const docTitle = isAnnual
+        ? `RESUMO OPERACIONAL ANUAL DE ${yearNum}`
+        : `RESUMO OPERACIONAL DE ${monthNameStr.toUpperCase()} DE ${yearNum}`;
+      doc.text(docTitle, 105, 48, { align: "center" });
 
       doc.setFont("Helvetica", "italic");
       doc.setFontSize(8.5);
       doc.setTextColor(119, 119, 119);
       const dateStr = new Date().toLocaleString("pt-BR");
-      doc.text(`Relatório Mensal Consolidado | Gerado em: ${dateStr}`, 105, 53, { align: "center" });
+      const docSub = isAnnual
+        ? `Relatório Anual Consolidado | Gerado em: ${dateStr}`
+        : `Relatório Mensal Consolidado | Gerado em: ${dateStr}`;
+      doc.text(docSub, 105, 53, { align: "center" });
 
       let currentY = 62;
 
@@ -321,15 +343,22 @@ export default function RelatoriosPage() {
       const mediaPorAtendimento = totalAtendimentos > 0 ? faturamentoTotal / totalAtendimentos : 0;
 
       // 1. Resumo Financeiro & Operacional
-      drawSectionTitle("1. Resumo Financeiro e Geral");
+      drawSectionTitle(isAnnual ? "1. Resumo Financeiro Anual" : "1. Resumo Financeiro e Geral");
       
       const kpis = [
-        { label: "Total de Atendimentos Realizados", val: `${totalAtendimentos} chamados` },
-        { label: "Faturamento Bruto Total", val: `R$ ${faturamentoTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
-        { label: "Despesas Totais Estimadas", val: `R$ ${despesasTotais.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
-        { label: "Lucro Líquido Estimado", val: `R$ ${lucroLiquido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
+        { label: isAnnual ? "Total de Atendimentos no Ano" : "Total de Atendimentos Realizados", val: `${totalAtendimentos} chamados` },
+        { label: isAnnual ? "Faturamento Bruto Anual" : "Faturamento Bruto Total", val: `R$ ${faturamentoTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
+        { label: isAnnual ? "Despesas Totais no Ano" : "Despesas Totais Estimadas", val: `R$ ${despesasTotais.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
+        { label: isAnnual ? "Lucro Líquido Real Anual" : "Lucro Líquido Estimado", val: `R$ ${lucroLiquido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
         { label: "Média de Faturamento por Atendimento", val: `R$ ${mediaPorAtendimento.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` }
       ];
+
+      if (isAnnual) {
+        kpis.push({
+          label: "Média Mensal de Faturamento",
+          val: `R$ ${(faturamentoTotal / 12).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+        });
+      }
 
       kpis.forEach(kpi => {
         doc.setFont("Helvetica", "bold");
@@ -339,7 +368,7 @@ export default function RelatoriosPage() {
         
         doc.setFont("Helvetica", "normal");
         doc.setTextColor(33, 33, 33);
-        doc.text(kpi.val, 95, currentY);
+        doc.text(kpi.val, 105, currentY);
         currentY += 5.5;
       });
       currentY += 2;
@@ -379,7 +408,6 @@ export default function RelatoriosPage() {
 
         if (sorted.length === 0) return null;
 
-        // Se houver múltiplos clientes e o que mais chamou tiver apenas 1 atendimento, não destaca
         if (sorted.length > 1 && sorted[0].count === 1) {
           return null;
         }
@@ -390,7 +418,7 @@ export default function RelatoriosPage() {
       let secNum = 2;
 
       if (topClient) {
-        drawSectionTitle(`${secNum}. Empresa / Cliente com Maior Volume no Mês`);
+        drawSectionTitle(isAnnual ? `${secNum}. Empresa / Cliente Principal do Ano` : `${secNum}. Empresa / Cliente com Maior Volume no Mês`);
         secNum++;
 
         doc.setFont("Helvetica", "bold");
@@ -399,7 +427,7 @@ export default function RelatoriosPage() {
         doc.text("Empresa / Cliente Principal:", 20, currentY);
         doc.setFont("Helvetica", "normal");
         doc.setTextColor(33, 33, 33);
-        doc.text(`${topClient.name}`, 95, currentY);
+        doc.text(`${topClient.name}`, 105, currentY);
         currentY += 5.5;
 
         doc.setFont("Helvetica", "bold");
@@ -407,7 +435,7 @@ export default function RelatoriosPage() {
         doc.text("Total de Chamados:", 20, currentY);
         doc.setFont("Helvetica", "normal");
         doc.setTextColor(33, 33, 33);
-        doc.text(`${topClient.count} atendimentos (${Math.round((topClient.count / Math.max(totalAtendimentos, 1)) * 100)}% dos serviços do mês)`, 95, currentY);
+        doc.text(`${topClient.count} atendimentos (${Math.round((topClient.count / Math.max(totalAtendimentos, 1)) * 100)}% dos serviços do ${isAnnual ? "ano" : "mês"})`, 105, currentY);
         currentY += 5.5;
 
         doc.setFont("Helvetica", "bold");
@@ -415,12 +443,12 @@ export default function RelatoriosPage() {
         doc.text("Faturamento Gerado:", 20, currentY);
         doc.setFont("Helvetica", "normal");
         doc.setTextColor(33, 33, 33);
-        doc.text(`R$ ${topClient.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, 95, currentY);
+        doc.text(`R$ ${topClient.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, 105, currentY);
         currentY += 7.5;
       }
 
       // 3. Desempenho da Frota & Combustível
-      drawSectionTitle(`${secNum}. Desempenho da Frota e Combustível`);
+      drawSectionTitle(isAnnual ? `${secNum}. Desempenho Anual da Frota e Combustível` : `${secNum}. Desempenho da Frota e Combustível`);
       secNum++;
 
       const totalKm = monthData.kmPercorrido || 0;
@@ -430,9 +458,9 @@ export default function RelatoriosPage() {
       const custoPorKm = totalKm > 0 ? (despesasTotais / totalKm).toFixed(2) : "0";
 
       const frotaStats = [
-        { label: "Distância Total Rodada", val: `${totalKm.toLocaleString("pt-BR")} km` },
-        { label: "Volume de Diesel Consumido", val: `${totalLitros.toLocaleString("pt-BR")} Litros` },
-        { label: "Gasto com Combustível", val: `R$ ${gastoCombustivel.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
+        { label: isAnnual ? "Distância Total Rodada no Ano" : "Distância Total Rodada", val: `${totalKm.toLocaleString("pt-BR")} km` },
+        { label: isAnnual ? "Volume Anual de Diesel Consumido" : "Volume de Diesel Consumido", val: `${totalLitros.toLocaleString("pt-BR")} Litros` },
+        { label: isAnnual ? "Gasto Anual com Combustível" : "Gasto com Combustível", val: `R$ ${gastoCombustivel.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
         { label: "Média Geral de Consumo", val: `${mediaKmL} km/L` },
         { label: "Custo Médio por KM Rodado", val: `R$ ${custoPorKm} / km` }
       ];
@@ -445,13 +473,13 @@ export default function RelatoriosPage() {
         
         doc.setFont("Helvetica", "normal");
         doc.setTextColor(33, 33, 33);
-        doc.text(st.val, 95, currentY);
+        doc.text(st.val, 105, currentY);
         currentY += 5.5;
       });
       currentY += 2;
 
       // 4. Detalhamento de Custos e Despesas
-      drawSectionTitle(`${secNum}. Composição Detalhada das Despesas`);
+      drawSectionTitle(isAnnual ? `${secNum}. Composição Detalhada das Despesas Anuais` : `${secNum}. Composição Detalhada das Despesas`);
       secNum++;
 
       const despesasBreakdown = [
@@ -471,14 +499,73 @@ export default function RelatoriosPage() {
         doc.setFont("Helvetica", "normal");
         doc.setTextColor(153, 51, 51);
         const valStr = `R$ ${Number(item.val).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
-        doc.text(valStr, 95, currentY);
+        doc.text(valStr, 105, currentY);
         currentY += 5.5;
       });
       currentY += 4;
 
-      // 5. Tabela Resumida dos Serviços do Mês
+      // Se for relatório ANUAL, imprime o Demonstrativo Mês a Mês do Ano
+      if (isAnnual && reportsData[yearNum]) {
+        drawSectionTitle(`${secNum}. Demonstrativo Mensal Consolidado do Ano (${yearNum})`);
+        secNum++;
+
+        doc.setFillColor(240, 240, 240);
+        doc.rect(20, currentY, 170, 6, "F");
+        
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(51, 51, 51);
+        doc.text("MÊS", 22, currentY + 4);
+        doc.text("CHAMADOS", 60, currentY + 4);
+        doc.text("FATURAMENTO", 95, currentY + 4);
+        doc.text("DESPESAS", 140, currentY + 4);
+        doc.text("LUCRO LÍQUIDO", 188, currentY + 4, { align: "right" });
+        
+        currentY += 8;
+
+        const allMonthsSorted = Object.keys(reportsData[yearNum]).sort((a, b) => a.localeCompare(b));
+        allMonthsSorted.forEach(mKey => {
+          if (currentY > 275) {
+            doc.addPage();
+            currentY = 20;
+          }
+
+          const mData = reportsData[yearNum][mKey];
+          const mName = monthNames[mKey] || mKey;
+          const mCount = mData.servicos.length;
+          const mFat = mData.faturamento || 0;
+          const mDesp = (
+            mData.despesasCombustivel + 
+            mData.despesasManutencao + 
+            mData.despesasPedagio + 
+            mData.despesasOutrosCustos +
+            mData.faturamentoDesconto
+          );
+          const mLucro = mData.lucroLiquido || (mFat - mDesp);
+
+          doc.setFont("Helvetica", "normal");
+          doc.setFontSize(8);
+          doc.setTextColor(33, 33, 33);
+
+          doc.text(mName, 22, currentY);
+          doc.text(`${mCount} chamados`, 60, currentY);
+          doc.text(`R$ ${mFat.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, 95, currentY);
+          
+          doc.setTextColor(153, 51, 51);
+          doc.text(`R$ ${mDesp.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, 140, currentY);
+          
+          doc.setTextColor(mLucro >= 0 ? 34 : 153, mLucro >= 0 ? 139 : 51, mLucro >= 0 ? 34 : 51);
+          doc.text(`R$ ${mLucro.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, 188, currentY, { align: "right" });
+
+          currentY += 6;
+        });
+
+        currentY += 4;
+      }
+
+      // Tabela Resumida dos Serviços
       if (monthData.servicos && monthData.servicos.length > 0) {
-        drawSectionTitle(`${secNum}. Relação de Serviços Realizados`);
+        drawSectionTitle(isAnnual ? `${secNum}. Relação Geral dos Serviços no Ano` : `${secNum}. Relação de Serviços Realizados`);
         
         doc.setFillColor(240, 240, 240);
         doc.rect(20, currentY, 170, 6, "F");
@@ -531,18 +618,387 @@ export default function RelatoriosPage() {
         doc.setFont("Helvetica", "normal");
         doc.setFontSize(8);
         doc.setTextColor(150, 150, 150);
-        doc.text(`Sanga Auto Socorro - Resumo Operacional de ${monthNameStr}/${yearNum}`, 20, 287);
+        doc.text(`Sanga Auto Socorro - ${docTitle}`, 20, 287);
         doc.text(`Página ${p} de ${totalPages}`, 190, 287, { align: "right" });
       }
 
-      const filename = `resumo-operacional-${monthNameStr.toLowerCase()}-${yearNum}.pdf`;
+      const filename = isAnnual ? `resumo-operacional-anual-${yearNum}.pdf` : `resumo-operacional-${monthNameStr.toLowerCase()}-${yearNum}.pdf`;
       doc.save(filename);
 
     } catch (err) {
       console.error("Erro ao gerar relatório PDF:", err);
-      alert("Ocorreu um erro ao gerar o relatório mensal.");
+      alert("Ocorreu um erro ao gerar o relatório.");
     } finally {
       setIsGeneratingMonthlyPDF(false);
+    }
+  };
+
+  const [isGeneratingServicePDF, setIsGeneratingServicePDF] = useState(false);
+  const [isOrcamentoOption, setIsOrcamentoOption] = useState(false);
+  const [customTitle, setCustomTitle] = useState("");
+  const [fullscreenPhoto, setFullscreenPhoto] = useState<string | null>(null);
+
+  const generateServicePDF = async (service: any, isOrcamento: boolean = false, customDocTitle: string = "") => {
+    if (!service) return;
+    setIsGeneratingServicePDF(true);
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF();
+
+      const docTitle = customDocTitle.trim()
+        ? customDocTitle.trim().toUpperCase()
+        : isOrcamento
+        ? "ORÇAMENTO DE PRESTAÇÃO DE SERVIÇOS"
+        : "ORDEM DE SERVIÇO / COMPROVANTE DE ATENDIMENTO";
+
+      const logoBase64 = await fetchImageAsBase64("/Sanga-Logo-Docs.png");
+
+      if (logoBase64) {
+        try {
+          doc.addImage(logoBase64, "PNG", 20, 14, 52, 20.8);
+        } catch (err) {
+          console.error("Erro ao adicionar logo ao PDF:", err);
+        }
+      } else {
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(16);
+        doc.setTextColor(33, 33, 33);
+        doc.text("SANGA AUTO SOCORRO", 20, 25);
+      }
+
+      const isElizia = service.empresa === "Elizia";
+      if (isElizia) {
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(33, 33, 33);
+        doc.text("ELIZIA SANGA", 190, 18, { align: "right" });
+        
+        doc.setFont("Helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(85, 85, 85);
+        doc.text("CNPJ: 14.887.411/0001-08", 190, 22, { align: "right" });
+        doc.text("Avenida Comendador Norberto Marcondes, 453", 190, 26, { align: "right" });
+        doc.text("Campo Mourão, Paraná", 190, 30, { align: "right" });
+        doc.text("sangaautosocorro@hotmail.com", 190, 34, { align: "right" });
+      } else {
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(33, 33, 33);
+        doc.text("21.475.238 SILVIO APARECIDO SANGA", 190, 18, { align: "right" });
+        
+        doc.setFont("Helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(85, 85, 85);
+        doc.text("CNPJ: 21.475.238/0001-43", 190, 22, { align: "right" });
+        doc.text("Avenida Comendador Norberto Marcondes, 453", 190, 26, { align: "right" });
+        doc.text("Campo Mourão, Paraná", 190, 30, { align: "right" });
+        doc.text("sangaautosocorro@hotmail.com", 190, 34, { align: "right" });
+      }
+
+      doc.setDrawColor(51, 51, 51);
+      doc.setLineWidth(1.2);
+      doc.line(20, 38, 190, 38);
+      
+      doc.setDrawColor(197, 160, 89);
+      doc.setLineWidth(0.6);
+      doc.line(20, 39.2, 190, 39.2);
+
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(51, 51, 51);
+      doc.text(docTitle, 105, 48, { align: "center" });
+
+      doc.setFont("Helvetica", "italic");
+      doc.setFontSize(8.5);
+      doc.setTextColor(119, 119, 119);
+      const dateStr = new Date().toLocaleString("pt-BR");
+      doc.text(`Documento emitido em: ${dateStr} | Registro Nº: ${service.id || "001"}`, 105, 53, { align: "center" });
+
+      let currentY = 62;
+
+      const drawSectionTitle = (title: string) => {
+        if (currentY > 250) {
+          doc.addPage();
+          currentY = 20;
+        }
+        currentY += 4;
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(10.5);
+        doc.setTextColor(51, 51, 51);
+        doc.text(title.toUpperCase(), 20, currentY);
+        
+        currentY += 2;
+        doc.setDrawColor(51, 51, 51);
+        doc.setLineWidth(0.4);
+        doc.line(20, currentY, 190, currentY);
+        currentY += 6;
+      };
+
+      const drawTwoColumnFields = (
+        sectionTitle: string,
+        fields: { label: string; value: any; isCurrency?: boolean; suffix?: string; hideIfZero?: boolean; fullWidth?: boolean }[]
+      ) => {
+        const activeFields = fields.filter(f => {
+          if (f.value === undefined || f.value === null || f.value === "") return false;
+          if (f.hideIfZero && (f.value === 0 || f.value === "0" || Number(f.value) === 0)) return false;
+          return true;
+        });
+        if (activeFields.length === 0) return;
+
+        drawSectionTitle(sectionTitle);
+
+        let idx = 0;
+        while (idx < activeFields.length) {
+          if (currentY > 275) {
+            doc.addPage();
+            currentY = 20;
+          }
+
+          const field1 = activeFields[idx];
+          const isFull1 = field1.fullWidth;
+          const field2 = !isFull1 ? activeFields[idx + 1] : undefined;
+
+          let valStr1 = String(field1.value);
+          if (field1.isCurrency) {
+            valStr1 = `R$ ${Number(field1.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+          } else if (field1.suffix) {
+            valStr1 = `${field1.value} ${field1.suffix}`;
+          }
+
+          doc.setFont("Helvetica", "bold");
+          doc.setFontSize(9.5);
+          doc.setTextColor(102, 102, 102);
+          doc.text(`${field1.label}:`, 20, currentY);
+          const w1 = doc.getTextWidth(`${field1.label}: `);
+          
+          doc.setFont("Helvetica", "normal");
+          doc.setTextColor(33, 33, 33);
+
+          const maxW1 = (isFull1 || !field2) ? (170 - w1) : (80 - w1);
+          const lines1 = doc.splitTextToSize(valStr1, Math.max(maxW1, 30));
+          doc.text(lines1, 20 + w1, currentY);
+          let h1 = lines1.length * 5;
+
+          let h2 = 0;
+          if (field2) {
+            let valStr2 = String(field2.value);
+            if (field2.isCurrency) {
+              valStr2 = `R$ ${Number(field2.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+            } else if (field2.suffix) {
+              valStr2 = `${field2.value} ${field2.suffix}`;
+            }
+            doc.setFont("Helvetica", "bold");
+            doc.setFontSize(9.5);
+            doc.setTextColor(102, 102, 102);
+            doc.text(`${field2.label}:`, 105, currentY);
+            const w2 = doc.getTextWidth(`${field2.label}: `);
+            
+            doc.setFont("Helvetica", "normal");
+            doc.setTextColor(33, 33, 33);
+            const lines2 = doc.splitTextToSize(valStr2, Math.max(85 - w2, 30));
+            doc.text(lines2, 105 + w2, currentY);
+            h2 = lines2.length * 5;
+          }
+
+          currentY += Math.max(h1, h2, 6);
+          idx += (field2 ? 2 : 1);
+        }
+        currentY += 2;
+      };
+
+      drawTwoColumnFields("Dados do Cliente", [
+        { label: "Cliente", value: service.cliente },
+        { label: "CNPJ / CPF", value: service.cnpjCliente },
+        { label: "Telefone", value: service.telefone },
+        { label: "E-mail", value: service.emailCliente },
+        { label: "Endereço", value: service.enderecoCliente, fullWidth: true },
+        { label: "Cidade / UF", value: service.cidadeCliente, fullWidth: true }
+      ]);
+
+      drawTwoColumnFields("Frota & Detalhes", [
+        { label: "Veículo", value: service.veiculo },
+        { label: "Placa", value: service.placa },
+        { label: "Frota", value: service.frota },
+        { label: "Tipo", value: service.tipo },
+        { label: "Data do Serviço", value: service.data },
+        { label: "Horário", value: service.hora }
+      ]);
+
+      const percursoFields: any[] = [
+        { label: "Origem", value: service.origem },
+        { label: "Destino", value: service.destino }
+      ];
+
+      if (!service.ocultarDistancia) {
+        percursoFields.push(
+          { label: "KM Inicial", value: service.kmInicial, hideIfZero: true },
+          { label: "KM Final", value: service.kmFinal, hideIfZero: true },
+          { label: "Distância Percorrida", value: service.kmPercorrido, suffix: "km", hideIfZero: true }
+        );
+      }
+
+      drawTwoColumnFields("Percurso & Trajeto", percursoFields);
+
+      if (!service.ocultarConsumo) {
+        drawTwoColumnFields("Consumo & Desempenho", [
+          { label: "Consumo de Combustível", value: service.consumoLitros, suffix: "Litros", hideIfZero: true },
+          { label: "Média de Consumo", value: service.mediaConsumo, suffix: "km/L", hideIfZero: true }
+        ]);
+      }
+
+      if (service.outrosCustos && service.outrosCustos.length > 0) {
+        drawSectionTitle("Detalhamento de Outros Custos");
+        const totalOutros = service.outrosCustos.reduce((acc: number, curr: any) => acc + curr.valor, 0);
+
+        service.outrosCustos.forEach((c: any) => {
+          if (currentY > 275) {
+            doc.addPage();
+            currentY = 20;
+          }
+          doc.setFont("Helvetica", "bold");
+          doc.setFontSize(9.5);
+          doc.setTextColor(102, 102, 102);
+          doc.text(c.descricao, 20, currentY);
+          
+          doc.setFont("Helvetica", "normal");
+          doc.setTextColor(153, 51, 51);
+          const valStr = `R$ ${Number(c.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+          doc.text(valStr, 190 - doc.getTextWidth(valStr), currentY);
+          currentY += 6;
+        });
+
+        if (currentY > 275) {
+          doc.addPage();
+          currentY = 20;
+        }
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.2);
+        doc.line(20, currentY, 190, currentY);
+        currentY += 4;
+
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(9.5);
+        doc.setTextColor(33, 33, 33);
+        doc.text("Total de Outros Custos", 20, currentY);
+
+        doc.setTextColor(153, 51, 51);
+        const totalOutrosStr = `R$ ${totalOutros.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+        doc.text(totalOutrosStr, 190 - doc.getTextWidth(totalOutrosStr), currentY);
+        currentY += 8;
+      }
+
+      if (service.descricao && service.descricao.trim() !== "") {
+        drawSectionTitle("Descrição das Atividades");
+        doc.setFont("Helvetica", "normal");
+        doc.setFontSize(9.5);
+        doc.setTextColor(51, 51, 51);
+        
+        const splitDesc = doc.splitTextToSize(service.descricao, 170);
+        splitDesc.forEach((line: string) => {
+          if (currentY > 280) {
+            doc.addPage();
+            currentY = 20;
+          }
+          doc.text(line, 20, currentY);
+          currentY += 5;
+        });
+        currentY += 4;
+      }
+
+      drawTwoColumnFields(
+        isOrcamento ? "Valores do Orçamento" : "Resumo Financeiro",
+        [
+          { label: isOrcamento ? "Valor do Orçamento" : "Valor Cobrado", value: service.valor, isCurrency: true, hideIfZero: true },
+          { label: "Prazo de Pagamento", value: service.prazoPagamento },
+          { label: "Valor do Pedágio", value: service.valorPedagio, isCurrency: true, hideIfZero: true }
+        ]
+      );
+
+      const hasImages = service.fotos && service.fotos.length > 0;
+
+      if (hasImages) {
+        drawSectionTitle("Galeria de Imagens do Atendimento");
+
+        const colWidth = 50;
+        const colHeight = 50;
+        const gap = 5;
+        const startX = 20;
+
+        for (let i = 0; i < service.fotos.length; i++) {
+          const colIndex = i % 3;
+
+          if (colIndex === 0 && currentY + colHeight > 280) {
+            doc.addPage();
+            currentY = 20;
+          }
+
+          const photoX = startX + colIndex * (colWidth + gap);
+          
+          try {
+            const imgData = service.fotos[i];
+            const dims = await getImageDimensions(imgData);
+            
+            let drawWidth = colWidth;
+            let drawHeight = colHeight;
+            const imgRatio = dims.width / dims.height;
+            const targetRatio = colWidth / colHeight;
+            
+            if (imgRatio > targetRatio) {
+              drawWidth = colWidth;
+              drawHeight = colWidth / imgRatio;
+            } else {
+              drawHeight = colHeight;
+              drawWidth = colHeight * imgRatio;
+            }
+            
+            const offsetX = photoX + (colWidth - drawWidth) / 2;
+            const offsetY = currentY + (colHeight - drawHeight) / 2;
+
+            doc.addImage(imgData, "JPEG", offsetX, offsetY, drawWidth, drawHeight);
+          } catch (e) {
+            console.error("Erro ao adicionar imagem ao PDF:", e);
+          }
+
+          if (colIndex === 2 || i === service.fotos.length - 1) {
+            currentY += colHeight + gap;
+          }
+        }
+      }
+
+      const totalPages = doc.getNumberOfPages();
+      for (let p = 1; p <= totalPages; p++) {
+        doc.setPage(p);
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.2);
+        doc.line(20, 282, 190, 282);
+        
+        doc.setFont("Helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Sanga Auto Socorro - ${docTitle}`, 20, 287);
+        doc.text(`Página ${p} de ${totalPages}`, 190, 287, { align: "right" });
+      }
+
+      const sanitizeForFilename = (str: string) => {
+        return str
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-zA-Z0-9\s-]/g, "")
+          .trim()
+          .replace(/\s+/g, "-")
+          .toLowerCase();
+      };
+
+      const titlePart = sanitizeForFilename(docTitle);
+      const clientPart = sanitizeForFilename(service.cliente || service.empresa || "servico");
+      const filename = `${titlePart}-${clientPart}-${service.id}.pdf`;
+      doc.save(filename);
+
+    } catch (error) {
+      console.error("Erro ao gerar PDF do serviço:", error);
+      alert("Ocorreu um erro ao gerar o PDF do serviço.");
+    } finally {
+      setIsGeneratingServicePDF(false);
     }
   };
 
@@ -1438,102 +1894,271 @@ export default function RelatoriosPage() {
       {/* Modal de Detalhes do Item na Tela de Relatórios */}
       <AnimatePresence>
         {viewingDetailItem && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <>
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setViewingDetailItem(null)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
             />
             <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="relative z-50 flex w-full max-h-[85vh] max-w-xl flex-col rounded-2xl bg-background shadow-2xl border border-border overflow-hidden"
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-x-0 bottom-0 z-50 flex h-[90vh] flex-col rounded-t-[2rem] bg-background shadow-2xl overflow-hidden md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:h-auto md:max-h-[85vh] md:w-full md:max-w-2xl md:rounded-2xl"
             >
-              <div className="flex items-center justify-between border-b border-border p-5 bg-card">
-                <div>
-                  <h3 className="text-base font-bold text-foreground">
-                    {viewingDetailItem.type === "servico" && `Serviço #${viewingDetailItem.item.id}`}
-                    {viewingDetailItem.type === "abastecimento" && `Abastecimento de Combustível`}
-                    {viewingDetailItem.type === "manutencao" && `Manutenção: ${viewingDetailItem.item.tipo}`}
-                    {viewingDetailItem.type === "compra" && `Item da Lista de Compras`}
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Data: {viewingDetailItem.item.data || viewingDetailItem.item.compradoEm || "-"}
-                  </p>
+              <div className="flex items-center justify-between border-b border-border p-6 bg-card">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-primary/10 rounded-xl text-primary">
+                    {viewingDetailItem.type === "servico" && <Truck className="h-6 w-6" />}
+                    {viewingDetailItem.type === "abastecimento" && <Fuel className="h-6 w-6" />}
+                    {viewingDetailItem.type === "manutencao" && <Wrench className="h-6 w-6" />}
+                    {viewingDetailItem.type === "compra" && <ShoppingCart className="h-6 w-6" />}
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-foreground">
+                      {viewingDetailItem.type === "servico" && "Detalhes do Atendimento"}
+                      {viewingDetailItem.type === "abastecimento" && "Abastecimento de Combustível"}
+                      {viewingDetailItem.type === "manutencao" && `Manutenção: ${viewingDetailItem.item.tipo}`}
+                      {viewingDetailItem.type === "compra" && "Item da Lista de Compras"}
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                      {viewingDetailItem.type === "servico" ? `ID do Serviço: ${viewingDetailItem.item.id}` : `Data: ${viewingDetailItem.item.data || viewingDetailItem.item.compradoEm || "-"}`}
+                    </p>
+                  </div>
                 </div>
-                <button 
-                  onClick={() => setViewingDetailItem(null)}
-                  className="rounded-full bg-muted p-2 hover:bg-border transition-colors cursor-pointer"
-                >
+                <button onClick={() => setViewingDetailItem(null)} className="rounded-full bg-muted p-2 hover:bg-border transition-colors cursor-pointer">
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-4 text-sm">
+              <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-background">
                 {viewingDetailItem.type === "servico" && (
                   <>
-                    <div className="grid grid-cols-2 gap-3 p-3 bg-muted/40 rounded-xl border border-border/60">
-                      <div>
-                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Cliente</span>
-                        <span className="font-bold text-foreground">{viewingDetailItem.item.cliente}</span>
+                    {/* Cabeçalho */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-muted/40 p-4 rounded-xl border border-border/60">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Cliente</span>
+                        <span className="text-base font-bold text-foreground block mt-1">{viewingDetailItem.item.cliente}</span>
+                        {viewingDetailItem.item.telefone && (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                            <Phone className="h-3 w-3" /> {viewingDetailItem.item.telefone}
+                          </span>
+                        )}
+                        {viewingDetailItem.item.cnpjCliente && (
+                          <span className="text-xs text-muted-foreground block mt-1 font-mono">
+                            CPF/CNPJ: {viewingDetailItem.item.cnpjCliente}
+                          </span>
+                        )}
                       </div>
-                      <div>
-                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Empresa / Emissor</span>
-                        <span className="font-bold text-primary">{viewingDetailItem.item.empresa || "Silvio"}</span>
-                      </div>
-                      {viewingDetailItem.item.telefone && (
-                        <div>
-                          <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Telefone</span>
-                          <span className="font-medium text-foreground">{viewingDetailItem.item.telefone}</span>
-                        </div>
-                      )}
-                      {viewingDetailItem.item.cnpjCliente && (
-                        <div>
-                          <span className="text-[10px] uppercase font-semibold text-muted-foreground block">CNPJ/CPF</span>
-                          <span className="font-mono text-foreground">{viewingDetailItem.item.cnpjCliente}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-2 p-3 bg-card rounded-xl border border-border">
-                      <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Trajeto</span>
-                      <p className="font-medium text-foreground">{viewingDetailItem.item.origem} → {viewingDetailItem.item.destino}</p>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="p-3 bg-card rounded-xl border border-border text-center">
-                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Veículo</span>
-                        <span className="font-bold text-foreground">{viewingDetailItem.item.veiculo || "-"}</span>
-                      </div>
-                      <div className="p-3 bg-card rounded-xl border border-border text-center">
-                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Placa</span>
-                        <span className="font-bold font-mono text-foreground">{viewingDetailItem.item.placa || "-"}</span>
-                      </div>
-                      <div className="p-3 bg-card rounded-xl border border-border text-center">
-                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Distância</span>
-                        <span className="font-bold text-foreground">{viewingDetailItem.item.kmPercorrido || 0} km</span>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-primary/10 rounded-xl border border-primary/20 flex items-center justify-between">
-                      <div>
-                        <span className="text-xs uppercase font-semibold text-muted-foreground block">Valor Cobrado</span>
-                        <span className="text-xl font-extrabold text-green-500">R$ {Number(viewingDetailItem.item.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
-                      </div>
-                      {viewingDetailItem.item.comNota && (
-                        <span className="px-3 py-1 bg-green-500/20 text-green-600 dark:text-green-400 font-bold text-xs rounded-full border border-green-500/30">
-                          ✓ Com Nota Fiscal
+                      <div className="bg-muted/40 p-4 rounded-xl border border-border/60 text-right">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Valor Cobrado</span>
+                        <span className="text-xl font-extrabold text-green-500 block mt-1">
+                          R$ {Number(viewingDetailItem.item.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </span>
+                        {viewingDetailItem.item.comNota && (
+                          <span className="inline-block mt-1 px-2.5 py-0.5 bg-green-500/20 text-green-600 dark:text-green-400 font-bold text-[10px] rounded-full border border-green-500/30">
+                            ✓ Com Nota Fiscal
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Percurso */}
+                    <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+                      <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Percurso & Trajeto</h3>
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-[10px] text-muted-foreground uppercase">Origem</p>
+                            <p className="text-sm font-semibold text-foreground truncate">{viewingDetailItem.item.origem || "Não fornecido"}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-[10px] text-muted-foreground uppercase">Destino</p>
+                            <p className="text-sm font-semibold text-foreground truncate">{viewingDetailItem.item.destino || "Não fornecido"}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Pedágio, Consumo e Média */}
+                    <div className="grid grid-cols-3 gap-4 bg-muted/40 p-4 rounded-xl border border-border/60">
+                      <div>
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Pedágio</span>
+                        <span className="text-sm font-bold text-red-500 block mt-0.5">
+                          R$ {Number(viewingDetailItem.item.valorPedagio || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Consumo</span>
+                        <span className="text-sm font-bold text-foreground block mt-0.5">{viewingDetailItem.item.consumoLitros || 0} Litros</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-semibold text-blue-500 block">Média trajeto</span>
+                        <span className="text-sm font-extrabold text-blue-500 block mt-0.5">{viewingDetailItem.item.mediaConsumo || 0} km/L</span>
+                      </div>
+                    </div>
+
+                    {/* Dados Técnicos e Frota */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      <div className="bg-muted/30 p-3.5 rounded-xl border border-border/50">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Empresa</span>
+                        <span className="text-sm font-semibold text-foreground block mt-1 truncate">{viewingDetailItem.item.empresa || "Silvio"}</span>
+                      </div>
+                      <div className="bg-muted/30 p-3.5 rounded-xl border border-border/50">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Veículo</span>
+                        <span className="text-sm font-semibold text-foreground block mt-1 truncate">{viewingDetailItem.item.veiculo || "-"}</span>
+                      </div>
+                      <div className="bg-muted/30 p-3.5 rounded-xl border border-border/50">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Placa</span>
+                        <span className="text-sm font-semibold text-foreground block mt-1 truncate">{viewingDetailItem.item.placa || "-"}</span>
+                      </div>
+                      <div className="bg-muted/30 p-3.5 rounded-xl border border-border/50">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Frota</span>
+                        <span className="text-sm font-semibold text-foreground block mt-1 truncate">{viewingDetailItem.item.frota || "-"}</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-muted/30 p-3.5 rounded-xl border border-border/50">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Tipo</span>
+                        <span className="text-sm font-semibold text-foreground block mt-1 truncate">{viewingDetailItem.item.tipo || "-"}</span>
+                      </div>
+                      <div className="bg-muted/30 p-3.5 rounded-xl border border-border/50">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Data</span>
+                        <span className="text-sm font-semibold text-foreground block mt-1 flex items-center gap-1">
+                          <Calendar className="h-3.5 w-3.5 shrink-0" /> {viewingDetailItem.item.data}
+                        </span>
+                      </div>
+                      <div className="bg-muted/30 p-3.5 rounded-xl border border-border/50">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Hora</span>
+                        <span className="text-sm font-semibold text-foreground block mt-1 flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5 shrink-0" /> {viewingDetailItem.item.hora || "-"}
+                        </span>
+                      </div>
+                      {viewingDetailItem.item.prazoPagamento && (
+                        <div className="bg-emerald-500/10 p-3.5 rounded-xl border border-emerald-500/20">
+                          <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider block">Prazo Pagamento</span>
+                          <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 block mt-1 truncate">{viewingDetailItem.item.prazoPagamento}</span>
+                        </div>
                       )}
                     </div>
 
-                    {viewingDetailItem.item.descricao && (
-                      <div className="p-3 bg-card rounded-xl border border-border">
-                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block mb-1">Observações</span>
-                        <p className="text-xs text-foreground whitespace-pre-wrap">{viewingDetailItem.item.descricao}</p>
+                    {/* Quilometragem */}
+                    <div className="grid grid-cols-3 gap-4 bg-muted/40 p-4 rounded-xl border border-border/60">
+                      <div>
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">KM Inicial</span>
+                        <span className="text-sm font-bold text-foreground block mt-0.5">{viewingDetailItem.item.kmInicial || 0}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">KM Final</span>
+                        <span className="text-sm font-bold text-foreground block mt-0.5">{viewingDetailItem.item.kmFinal || 0}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-semibold text-primary block">Distância</span>
+                        <span className="text-sm font-extrabold text-primary block mt-0.5">{viewingDetailItem.item.kmPercorrido || 0} km</span>
+                      </div>
+                    </div>
+
+                    {/* Outros Custos Detalhados */}
+                    {viewingDetailItem.item.outrosCustos && viewingDetailItem.item.outrosCustos.length > 0 && (
+                      <div className="space-y-2">
+                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Outros Custos Operacionais</span>
+                        <div className="bg-muted/20 border border-border rounded-xl p-4 space-y-2.5">
+                          {viewingDetailItem.item.outrosCustos.map((cost: any, index: number) => (
+                            <div key={index} className="flex justify-between items-center text-xs border-b border-border/40 pb-2 last:border-0 last:pb-0">
+                              <span className="font-semibold text-foreground">{cost.descricao}</span>
+                              <span className="font-bold text-red-500">R$ {Number(cost.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          ))}
+                          <div className="flex justify-between items-center pt-2 border-t border-border font-bold text-xs text-foreground">
+                            <span>Total Outros Custos</span>
+                            <span className="text-red-600">
+                              R$ {viewingDetailItem.item.outrosCustos.reduce((acc: number, curr: any) => acc + (Number(curr.valor) || 0), 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     )}
+
+                    {/* Descrição */}
+                    {viewingDetailItem.item.descricao && (
+                      <div className="space-y-1.5">
+                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Descrição do Atendimento</span>
+                        <div className="bg-muted/20 p-4 rounded-xl border border-border text-sm text-foreground whitespace-pre-wrap">
+                          {viewingDetailItem.item.descricao}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Fotos salvas */}
+                    {viewingDetailItem.item.fotos && viewingDetailItem.item.fotos.length > 0 && (
+                      <div className="space-y-2">
+                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Imagens Anexadas ({viewingDetailItem.item.fotos.length})</span>
+                        <div className="grid grid-cols-3 gap-3">
+                          {viewingDetailItem.item.fotos.map((photo: string, index: number) => (
+                            <div 
+                              key={index} 
+                              onClick={() => setFullscreenPhoto(photo)}
+                              className="relative aspect-square rounded-xl overflow-hidden cursor-zoom-in border border-border bg-card group"
+                            >
+                              <img src={photo} alt={`Atendimento ${index}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                                <Eye className="h-5 w-5" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Emitir Documento (PDF) do Serviço */}
+                    <div className="pt-6 border-t border-border flex flex-col gap-4">
+                      <div className="flex flex-wrap items-center gap-4">
+                        <label className="flex items-center gap-2 text-sm font-medium text-foreground cursor-pointer select-none">
+                          <input 
+                            type="checkbox" 
+                            checked={isOrcamentoOption} 
+                            onChange={(e) => setIsOrcamentoOption(e.target.checked)}
+                            className="h-4 w-4 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer" 
+                          />
+                          <span>Gerar Orçamento</span>
+                        </label>
+
+                        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                          <span className="text-xs font-semibold text-muted-foreground uppercase">Título:</span>
+                          <input
+                            type="text"
+                            placeholder="Personalizado"
+                            value={customTitle}
+                            onChange={(e) => setCustomTitle(e.target.value.toUpperCase())}
+                            className="w-full rounded-xl bg-muted/50 px-3 py-2 text-xs font-semibold text-foreground uppercase border border-border/40 shadow-inner outline-none transition-all focus:border-primary focus:bg-background placeholder:text-muted-foreground/50 placeholder:normal-case"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-3">
+                        <button
+                          onClick={() => generateServicePDF(viewingDetailItem.item, isOrcamentoOption, customTitle)}
+                          disabled={isGeneratingServicePDF}
+                          className="w-full sm:w-auto bg-primary text-primary-foreground font-semibold px-6 py-3 rounded-xl hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                        >
+                          {isGeneratingServicePDF ? (
+                            <>
+                              <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent animate-spin rounded-full" />
+                              Gerando PDF...
+                            </>
+                          ) : (
+                            <>
+                              <Download className="h-4 w-4" />
+                              {customTitle.trim() ? `Emitir (${customTitle.trim()})` : isOrcamentoOption ? "Emitir Orçamento (PDF)" : "Emitir O.S. (PDF)"}
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
                   </>
                 )}
 
@@ -1616,12 +2241,33 @@ export default function RelatoriosPage() {
               <div className="border-t border-border p-4 bg-card flex justify-end">
                 <button
                   onClick={() => setViewingDetailItem(null)}
-                  className="px-5 py-2.5 bg-primary text-primary-foreground text-xs font-bold rounded-xl hover:opacity-90 transition-opacity"
+                  className="px-5 py-2.5 bg-muted text-muted-foreground hover:bg-border text-xs font-bold rounded-xl transition-colors cursor-pointer"
                 >
                   Fechar Detalhes
                 </button>
               </div>
             </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Secundário: Visualizador de Fotos em Tela Cheia */}
+      <AnimatePresence>
+        {fullscreenPhoto && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/90 p-4 backdrop-blur-md">
+            <button
+              onClick={() => setFullscreenPhoto(null)}
+              className="absolute top-4 right-4 text-white hover:text-gray-300 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all z-10"
+            >
+              <X className="h-6 w-6" />
+            </button>
+            <div className="relative max-w-4xl max-h-[90vh] w-full h-full flex items-center justify-center">
+              <img
+                src={fullscreenPhoto}
+                alt="Foto em tamanho completo"
+                className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+              />
+            </div>
           </div>
         )}
       </AnimatePresence>
