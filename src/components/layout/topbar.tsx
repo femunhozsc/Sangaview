@@ -68,8 +68,8 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         </div>
       </div>
 
-      {/* Sub-bar de botões de atalho (visível APENAS no computador / desktop) */}
-      <nav className="hidden md:flex items-center gap-1 border-t border-white/10 px-4 py-2 overflow-x-auto scrollbar-none bg-graphite-dark/60 backdrop-blur-sm">
+      {/* Sub-bar de botões de atalho (visível APENAS no computador / desktop - centralizado) */}
+      <nav className="hidden md:flex items-center justify-center gap-1 border-t border-white/10 px-4 py-2 overflow-x-auto scrollbar-none bg-graphite-dark/60 backdrop-blur-sm">
         {desktopMenuItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
           return (

@@ -48,6 +48,7 @@ const fetchImageAsBase64 = async (url: string): Promise<string> => {
 
 
 const monthNames: { [key: string]: string } = {
+  "total": "Total do Ano",
   "01": "Janeiro", "02": "Fevereiro", "03": "Março", "04": "Abril", "05": "Maio", "06": "Junho",
   "07": "Julho", "08": "Agosto", "09": "Setembro", "10": "Outubro", "11": "Novembro", "12": "Dezembro"
 };
@@ -679,12 +680,17 @@ export default function RelatoriosPage() {
     }
   }, [selectedYear, months, selectedMonth]);
 
+  const [viewingDetailItem, setViewingDetailItem] = useState<{ item: any; type: "servico" | "abastecimento" | "manutencao" | "compra" } | null>(null);
+
   const annualStats = useMemo(() => {
     if (!selectedYear || !reportsData[selectedYear]) {
-      return { faturamento: 0, despesas: 0, lucro: 0 };
+      return { faturamento: 0, faturamentoComNota: 0, faturamentoSemNota: 0, despesas: 0, lucro: 0 };
     }
     let faturamento = 0;
+    let faturamentoComNota = 0;
+    let faturamentoSemNota = 0;
     let despesas = 0;
+
     Object.keys(reportsData[selectedYear]).forEach(month => {
       const group = reportsData[selectedYear][month];
       faturamento += group.faturamento;
@@ -695,19 +701,86 @@ export default function RelatoriosPage() {
         group.despesasOutrosCustos +
         group.faturamentoDesconto
       );
+
+      group.servicos.forEach((s: any) => {
+        const val = Number(s.valor) || 0;
+        if (s.comNota) {
+          faturamentoComNota += val;
+        } else {
+          faturamentoSemNota += val;
+        }
+      });
     });
+
     return {
       faturamento,
+      faturamentoComNota,
+      faturamentoSemNota,
       despesas,
       lucro: faturamento - despesas
     };
   }, [reportsData, selectedYear]);
 
   const activeMonthData = useMemo(() => {
-    if (!selectedYear || !selectedMonth || !reportsData[selectedYear]?.[selectedMonth]) {
+    if (!selectedYear || !selectedMonth || !reportsData[selectedYear]) {
       return null;
     }
-    return reportsData[selectedYear][selectedMonth];
+
+    if (selectedMonth === "total") {
+      const allServicos: any[] = [];
+      const allAbastecimentos: any[] = [];
+      const allManutencoes: any[] = [];
+      const allCompras: any[] = [];
+
+      let faturamentoOriginal = 0;
+      let faturamentoDesconto = 0;
+      let despesasCombustivel = 0;
+      let despesasManutencao = 0;
+      let despesasPedagio = 0;
+      let despesasOutrosCustos = 0;
+      let kmPercorrido = 0;
+      let litrosAbastecidos = 0;
+
+      Object.keys(reportsData[selectedYear]).forEach(m => {
+        const grp = reportsData[selectedYear][m];
+        allServicos.push(...grp.servicos);
+        allAbastecimentos.push(...grp.abastecimentos);
+        allManutencoes.push(...grp.manutencoes);
+        allCompras.push(...grp.compras);
+
+        faturamentoOriginal += grp.faturamentoOriginal;
+        faturamentoDesconto += grp.faturamentoDesconto;
+        despesasCombustivel += grp.despesasCombustivel;
+        despesasManutencao += grp.despesasManutencao;
+        despesasPedagio += grp.despesasPedagio;
+        despesasOutrosCustos += grp.despesasOutrosCustos;
+        kmPercorrido += grp.kmPercorrido;
+        litrosAbastecidos += grp.litrosAbastecidos;
+      });
+
+      const faturamento = faturamentoOriginal;
+      const despesasTotais = despesasCombustivel + despesasManutencao + despesasPedagio + despesasOutrosCustos + faturamentoDesconto;
+      const lucroLiquido = faturamento - despesasTotais;
+
+      return {
+        servicos: allServicos,
+        abastecimentos: allAbastecimentos,
+        manutencoes: allManutencoes,
+        compras: allCompras,
+        faturamentoOriginal,
+        faturamentoDesconto,
+        faturamento,
+        despesasCombustivel,
+        despesasManutencao,
+        despesasPedagio,
+        despesasOutrosCustos,
+        lucroLiquido,
+        kmPercorrido,
+        litrosAbastecidos
+      };
+    }
+
+    return reportsData[selectedYear][selectedMonth] || null;
   }, [reportsData, selectedYear, selectedMonth]);
 
   // Consolidado de despesas extras: Manutenção + Pedágio + Outros Custos dos Serviços + Compras Concluídas
@@ -771,15 +844,27 @@ export default function RelatoriosPage() {
 
                 {selectedYear && (
                   <div className="space-y-1.5 pt-2 border-t border-border">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Mês</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Mês / Período</label>
                     <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setSelectedMonth("total")}
+                        className={`flex items-center justify-between px-3 py-2 rounded-xl text-left text-sm font-bold transition-all col-span-2 cursor-pointer ${
+                          selectedMonth === "total" 
+                            ? "bg-primary text-primary-foreground shadow-sm" 
+                            : "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20"
+                        }`}
+                      >
+                        <span>Total do Ano ({selectedYear})</span>
+                        <ChevronRight className="h-4 w-4 opacity-70" />
+                      </button>
+
                       {months.map(m => (
                         <button
                           key={m}
                           onClick={() => setSelectedMonth(m)}
-                          className={`flex items-center justify-between px-3 py-2 rounded-xl text-left text-sm font-medium transition-all ${
+                          className={`flex items-center justify-between px-3 py-2 rounded-xl text-left text-sm font-medium transition-all cursor-pointer ${
                             selectedMonth === m 
-                              ? "bg-primary/10 text-primary border border-primary/20" 
+                              ? "bg-primary/10 text-primary border border-primary/20 font-bold" 
                               : "bg-muted/50 text-muted-foreground border border-transparent hover:bg-muted"
                           }`}
                         >
@@ -795,17 +880,25 @@ export default function RelatoriosPage() {
 
             {/* Resumo Anual */}
             {selectedYear && (
-              <div className="rounded-2xl bg-muted/40 p-5 border border-border/80">
-                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
+              <div className="rounded-2xl bg-muted/40 p-5 border border-border/80 space-y-3">
+                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                   Resumo Anual ({selectedYear})
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground">Faturamento Bruto:</span>
                     <span className="font-semibold text-foreground">
                       R$ {annualStats.faturamento.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </span>
                   </div>
+                  {annualStats.faturamentoComNota > 0 && (
+                    <div className="flex justify-between items-center text-xs bg-green-500/10 p-2 rounded-lg border border-green-500/20">
+                      <span className="font-semibold text-green-700 dark:text-green-400">Com Nota Fiscal (Emitida):</span>
+                      <span className="font-bold text-green-600 dark:text-green-400">
+                        R$ {annualStats.faturamentoComNota.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground">Despesas Totais:</span>
                     <span className="font-semibold text-red-500">
@@ -951,8 +1044,8 @@ export default function RelatoriosPage() {
                           activeMonthData.servicos.map((s, index) => (
                             <div key={s.id || index} className="p-4 flex flex-col justify-between text-sm hover:bg-muted/30 transition-colors gap-2 border-b border-border/40 last:border-0">
                               <div className="flex justify-between items-center w-full gap-4">
-                                <Link 
-                                  href={`/servicos?id=${s.id}`}
+                                <div 
+                                  onClick={() => setViewingDetailItem({ item: s, type: "servico" })}
                                   className="flex-1 min-w-0 group cursor-pointer"
                                   title="Ver detalhes do serviço"
                                 >
@@ -961,7 +1054,7 @@ export default function RelatoriosPage() {
                                     <ChevronRight className="h-3.5 w-3.5 opacity-40 group-hover:opacity-100 transition-opacity" />
                                   </p>
                                   <p className="text-xs text-muted-foreground mt-0.5 truncate">{s.origem} → {s.destino} | {s.data}</p>
-                                </Link>
+                                </div>
                                 <div className="flex items-center gap-3 shrink-0">
                                   <span className="font-bold text-green-500">R$ {Number(s.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                                   <div className="flex gap-1">
@@ -990,8 +1083,8 @@ export default function RelatoriosPage() {
                         ) : (
                           activeMonthData.abastecimentos.map((a, index) => (
                             <div key={a.id || index} className="p-4 flex justify-between items-center text-sm hover:bg-muted/30 transition-colors gap-4">
-                              <Link 
-                                href={`/abastecimentos?id=${a.id}`}
+                              <div 
+                                onClick={() => setViewingDetailItem({ item: a, type: "abastecimento" })}
                                 className="flex-1 min-w-0 group cursor-pointer"
                                 title="Ver detalhes do abastecimento"
                               >
@@ -1000,7 +1093,7 @@ export default function RelatoriosPage() {
                                   <ChevronRight className="h-3.5 w-3.5 opacity-40 group-hover:opacity-100 transition-opacity" />
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-0.5 truncate">{a.litros} Litros | KM: {Number(a.km || 0).toLocaleString("pt-BR")} | {a.data}</p>
-                              </Link>
+                              </div>
                               <div className="flex items-center gap-3 shrink-0">
                                 <span className="font-bold text-red-500">R$ {Number(a.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                                 <div className="flex gap-1">
@@ -1019,8 +1112,8 @@ export default function RelatoriosPage() {
                         ) : (
                           activeMonthData.manutencoes.map((m, index) => (
                             <div key={m.id || index} className="p-4 flex justify-between items-center text-sm hover:bg-muted/30 transition-colors gap-4">
-                              <Link 
-                                href={`/manutencoes?id=${m.id}`}
+                              <div 
+                                onClick={() => setViewingDetailItem({ item: m, type: "manutencao" })}
                                 className="flex-1 min-w-0 group cursor-pointer"
                                 title="Ver detalhes da manutenção"
                               >
@@ -1029,7 +1122,7 @@ export default function RelatoriosPage() {
                                   <ChevronRight className="h-3.5 w-3.5 opacity-40 group-hover:opacity-100 transition-opacity" />
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-0.5 truncate">KM: {Number(m.km || 0).toLocaleString("pt-BR")} | {m.data}</p>
-                              </Link>
+                              </div>
                               <div className="flex items-center gap-3 shrink-0">
                                 <span className="font-bold text-red-500">R$ {Number(m.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                                 <div className="flex gap-1">
@@ -1048,17 +1141,17 @@ export default function RelatoriosPage() {
                         ) : (
                           activeMonthData.compras.map((c, index) => (
                             <div key={c.id || index} className="p-4 flex justify-between items-center text-sm hover:bg-muted/30 transition-colors gap-4">
-                              <Link 
-                                href={`/lista-compras?id=${c.id}`}
+                              <div 
+                                onClick={() => setViewingDetailItem({ item: c, type: "compra" })}
                                 className="flex-1 min-w-0 group cursor-pointer"
-                                title="Ver lista de compras"
+                                title="Ver detalhes da compra"
                               >
                                 <p className="font-semibold text-foreground truncate group-hover:text-amber-500 transition-colors flex items-center gap-1.5">
                                   {c.item} ({c.quantidade})
                                   <ChevronRight className="h-3.5 w-3.5 opacity-40 group-hover:opacity-100 transition-opacity" />
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-0.5 truncate">Comprado em: {c.compradoEm}</p>
-                              </Link>
+                              </div>
                               <div className="flex items-center gap-3 shrink-0">
                                 <span className="font-bold text-amber-600 dark:text-amber-400">R$ {Number(c.preco || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                                 <div className="flex gap-1">
@@ -1339,6 +1432,197 @@ export default function RelatoriosPage() {
               </form>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Detalhes do Item na Tela de Relatórios */}
+      <AnimatePresence>
+        {viewingDetailItem && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setViewingDetailItem(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative z-50 flex w-full max-h-[85vh] max-w-xl flex-col rounded-2xl bg-background shadow-2xl border border-border overflow-hidden"
+            >
+              <div className="flex items-center justify-between border-b border-border p-5 bg-card">
+                <div>
+                  <h3 className="text-base font-bold text-foreground">
+                    {viewingDetailItem.type === "servico" && `Serviço #${viewingDetailItem.item.id}`}
+                    {viewingDetailItem.type === "abastecimento" && `Abastecimento de Combustível`}
+                    {viewingDetailItem.type === "manutencao" && `Manutenção: ${viewingDetailItem.item.tipo}`}
+                    {viewingDetailItem.type === "compra" && `Item da Lista de Compras`}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Data: {viewingDetailItem.item.data || viewingDetailItem.item.compradoEm || "-"}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setViewingDetailItem(null)}
+                  className="rounded-full bg-muted p-2 hover:bg-border transition-colors cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 text-sm">
+                {viewingDetailItem.type === "servico" && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3 p-3 bg-muted/40 rounded-xl border border-border/60">
+                      <div>
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Cliente</span>
+                        <span className="font-bold text-foreground">{viewingDetailItem.item.cliente}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Empresa / Emissor</span>
+                        <span className="font-bold text-primary">{viewingDetailItem.item.empresa || "Silvio"}</span>
+                      </div>
+                      {viewingDetailItem.item.telefone && (
+                        <div>
+                          <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Telefone</span>
+                          <span className="font-medium text-foreground">{viewingDetailItem.item.telefone}</span>
+                        </div>
+                      )}
+                      {viewingDetailItem.item.cnpjCliente && (
+                        <div>
+                          <span className="text-[10px] uppercase font-semibold text-muted-foreground block">CNPJ/CPF</span>
+                          <span className="font-mono text-foreground">{viewingDetailItem.item.cnpjCliente}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 p-3 bg-card rounded-xl border border-border">
+                      <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Trajeto</span>
+                      <p className="font-medium text-foreground">{viewingDetailItem.item.origem} → {viewingDetailItem.item.destino}</p>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="p-3 bg-card rounded-xl border border-border text-center">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Veículo</span>
+                        <span className="font-bold text-foreground">{viewingDetailItem.item.veiculo || "-"}</span>
+                      </div>
+                      <div className="p-3 bg-card rounded-xl border border-border text-center">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Placa</span>
+                        <span className="font-bold font-mono text-foreground">{viewingDetailItem.item.placa || "-"}</span>
+                      </div>
+                      <div className="p-3 bg-card rounded-xl border border-border text-center">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Distância</span>
+                        <span className="font-bold text-foreground">{viewingDetailItem.item.kmPercorrido || 0} km</span>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-primary/10 rounded-xl border border-primary/20 flex items-center justify-between">
+                      <div>
+                        <span className="text-xs uppercase font-semibold text-muted-foreground block">Valor Cobrado</span>
+                        <span className="text-xl font-extrabold text-green-500">R$ {Number(viewingDetailItem.item.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      {viewingDetailItem.item.comNota && (
+                        <span className="px-3 py-1 bg-green-500/20 text-green-600 dark:text-green-400 font-bold text-xs rounded-full border border-green-500/30">
+                          ✓ Com Nota Fiscal
+                        </span>
+                      )}
+                    </div>
+
+                    {viewingDetailItem.item.descricao && (
+                      <div className="p-3 bg-card rounded-xl border border-border">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block mb-1">Observações</span>
+                        <p className="text-xs text-foreground whitespace-pre-wrap">{viewingDetailItem.item.descricao}</p>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {viewingDetailItem.type === "abastecimento" && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 bg-card rounded-xl border border-border">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Veículo</span>
+                        <span className="font-bold text-foreground">{viewingDetailItem.item.veiculo}</span>
+                      </div>
+                      <div className="p-3 bg-card rounded-xl border border-border">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Quilometragem</span>
+                        <span className="font-bold text-foreground">{Number(viewingDetailItem.item.km || 0).toLocaleString("pt-BR")} km</span>
+                      </div>
+                      <div className="p-3 bg-card rounded-xl border border-border">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Litros</span>
+                        <span className="font-bold text-foreground">{viewingDetailItem.item.litros} Litros</span>
+                      </div>
+                      <div className="p-3 bg-card rounded-xl border border-border">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Valor Pago</span>
+                        <span className="font-bold text-red-500">R$ {Number(viewingDetailItem.item.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {viewingDetailItem.type === "manutencao" && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 bg-card rounded-xl border border-border">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Tipo</span>
+                        <span className="font-bold text-foreground">{viewingDetailItem.item.tipo}</span>
+                      </div>
+                      <div className="p-3 bg-card rounded-xl border border-border">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Veículo</span>
+                        <span className="font-bold text-foreground">{viewingDetailItem.item.veiculo}</span>
+                      </div>
+                      <div className="p-3 bg-card rounded-xl border border-border">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Quilometragem</span>
+                        <span className="font-bold text-foreground">{Number(viewingDetailItem.item.km || 0).toLocaleString("pt-BR")} km</span>
+                      </div>
+                      <div className="p-3 bg-card rounded-xl border border-border">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Valor</span>
+                        <span className="font-bold text-red-500">R$ {Number(viewingDetailItem.item.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                    {viewingDetailItem.item.observacoes && (
+                      <div className="p-3 bg-card rounded-xl border border-border">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block mb-1">Observações</span>
+                        <p className="text-xs text-foreground">{viewingDetailItem.item.observacoes}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {viewingDetailItem.type === "compra" && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 bg-card rounded-xl border border-border">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Item</span>
+                        <span className="font-bold text-foreground">{viewingDetailItem.item.item}</span>
+                      </div>
+                      <div className="p-3 bg-card rounded-xl border border-border">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Quantidade</span>
+                        <span className="font-bold text-foreground">{viewingDetailItem.item.quantidade}</span>
+                      </div>
+                      <div className="p-3 bg-card rounded-xl border border-border">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Preço</span>
+                        <span className="font-bold text-amber-500">R$ {Number(viewingDetailItem.item.preco || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="p-3 bg-card rounded-xl border border-border">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block">Status</span>
+                        <span className="font-bold text-green-500">Concluído</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-border p-4 bg-card flex justify-end">
+                <button
+                  onClick={() => setViewingDetailItem(null)}
+                  className="px-5 py-2.5 bg-primary text-primary-foreground text-xs font-bold rounded-xl hover:opacity-90 transition-opacity"
+                >
+                  Fechar Detalhes
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

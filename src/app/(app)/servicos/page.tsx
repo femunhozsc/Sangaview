@@ -62,6 +62,7 @@ type ServiceFormData = {
   consumoLitros: number;
   ocultarDistancia?: boolean;
   ocultarConsumo?: boolean;
+  comNota?: boolean;
 };
 
 const initialMockServices: any[] = [];
@@ -812,6 +813,7 @@ function ServicosContent() {
       consumoLitros: Number(servico.consumoLitros) || 0,
       ocultarDistancia: !!servico.ocultarDistancia,
       ocultarConsumo: !!servico.ocultarConsumo,
+      comNota: !!servico.comNota,
       descricao: servico.descricao || ""
     });
     setIsFormOpen(true);
@@ -922,6 +924,7 @@ function ServicosContent() {
         mediaConsumo: mediaConsumo,
         ocultarDistancia: !!data.ocultarDistancia,
         ocultarConsumo: !!data.ocultarConsumo,
+        comNota: !!data.comNota,
         descricao: data.descricao || "",
         fotos: tempPhotos,
         outrosCustos: tempOtherCosts
@@ -1314,32 +1317,48 @@ function ServicosContent() {
 
               <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 overscroll-contain bg-background space-y-6">
                 <form id="service-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                  {/* Opções de Empresa / Emissor */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Empresa / Emissor</label>
-                    <div className="grid grid-cols-2 gap-3 p-1.5 bg-muted/40 rounded-xl border border-border">
-                      <button
-                        type="button"
-                        onClick={() => setValue("empresa", "Silvio")}
-                        className={`py-2.5 px-4 text-sm font-bold rounded-lg transition-all cursor-pointer ${
-                          watch("empresa") === "Silvio" || !watch("empresa")
-                            ? "bg-primary text-primary-foreground shadow-sm"
-                            : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted"
-                        }`}
-                      >
-                        Silvio
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setValue("empresa", "Elizia")}
-                        className={`py-2.5 px-4 text-sm font-bold rounded-lg transition-all cursor-pointer ${
-                          watch("empresa") === "Elizia"
-                            ? "bg-primary text-primary-foreground shadow-sm"
-                            : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted"
-                        }`}
-                      >
-                        Elizia
-                      </button>
+                  {/* Opções de Empresa / Emissor e Nota Fiscal */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Empresa / Emissor</label>
+                      <div className="grid grid-cols-2 gap-3 p-1.5 bg-muted/40 rounded-xl border border-border">
+                        <button
+                          type="button"
+                          onClick={() => setValue("empresa", "Silvio")}
+                          className={`py-2.5 px-4 text-sm font-bold rounded-lg transition-all cursor-pointer ${
+                            watch("empresa") === "Silvio" || !watch("empresa")
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted"
+                          }`}
+                        >
+                          Silvio
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setValue("empresa", "Elizia")}
+                          className={`py-2.5 px-4 text-sm font-bold rounded-lg transition-all cursor-pointer ${
+                            watch("empresa") === "Elizia"
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted"
+                          }`}
+                        >
+                          Elizia
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 flex flex-col justify-end">
+                      <label className="flex items-center gap-3 p-3 bg-card rounded-xl border border-border cursor-pointer hover:bg-muted/40 transition-colors">
+                        <input 
+                          type="checkbox" 
+                          {...register("comNota")} 
+                          className="h-5 w-5 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer shrink-0"
+                        />
+                        <div>
+                          <span className="text-sm font-bold text-foreground block">Emitir Nota Fiscal</span>
+                          <span className="text-[11px] text-muted-foreground block">Serviço faturado com nota</span>
+                        </div>
+                      </label>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

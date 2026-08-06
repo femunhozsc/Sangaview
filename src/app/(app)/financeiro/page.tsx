@@ -167,9 +167,9 @@ export default function FinanceiroPage() {
   }, [servicosFiltrados, comprasFiltradas, abastecimentosFiltrados, manutencoesFiltradas]);
 
   const getLabelPeriodo = () => {
-    if (periodo === "mes") return `Mês Atual (${currentMonthName})`;
-    if (periodo === "ano") return `Ano Atual (${currentYear})`;
-    return "Total Acumulado";
+    if (periodo === "mes") return currentMonthName;
+    if (periodo === "ano") return `${currentYear}`;
+    return "Total";
   };
 
   return (
@@ -189,7 +189,7 @@ export default function FinanceiroPage() {
               periodo === "mes" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"
             )}
           >
-            Mês ({currentMonthName})
+            {currentMonthName}
           </button>
           <button
             onClick={() => setPeriodo("ano")}
@@ -198,7 +198,7 @@ export default function FinanceiroPage() {
               periodo === "ano" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"
             )}
           >
-            Ano ({currentYear})
+            {currentYear}
           </button>
           <button
             onClick={() => setPeriodo("total")}
@@ -207,7 +207,7 @@ export default function FinanceiroPage() {
               periodo === "total" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"
             )}
           >
-            Total Acumulado
+            Total
           </button>
         </div>
       </div>
@@ -225,7 +225,6 @@ export default function FinanceiroPage() {
           whileTap={{ scale: 0.99 }}
           onClick={handleTogglePeriodo}
           className="rounded-2xl bg-card p-6 shadow-sm border border-border cursor-pointer hover:border-green-500/40 relative group transition-all"
-          title="Clique para alternar entre Mês Atual, Ano Atual e Total"
         >
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-1.5">
@@ -240,9 +239,6 @@ export default function FinanceiroPage() {
           <p className="mt-4 text-3xl font-extrabold text-green-500 tracking-tight">
             R$ {totalReceitas.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          <span className="text-[10px] text-muted-foreground/80 mt-2 block font-medium group-hover:text-primary transition-colors">
-            💡 Clique no card para alternar o período
-          </span>
         </motion.div>
 
         {/* Card 2: Despesas */}
@@ -295,7 +291,7 @@ export default function FinanceiroPage() {
       <div className="rounded-2xl bg-card shadow-sm border border-border overflow-hidden">
         <div className="p-6 border-b border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-card">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-primary" /> Extrato Recente ({getLabelPeriodo()})
+            <DollarSign className="h-5 w-5 text-primary" /> Extrato Recente {getLabelPeriodo()}
           </h2>
           <span className="text-xs text-muted-foreground font-medium">
             Exibindo {extratoList.length} transações no período selecionado
