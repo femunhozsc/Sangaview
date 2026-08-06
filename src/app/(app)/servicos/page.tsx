@@ -1316,7 +1316,7 @@ function ServicosContent() {
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               className="relative z-50 flex w-full h-[88vh] flex-col rounded-t-[2.5rem] rounded-b-none bg-background shadow-2xl overflow-hidden md:h-[85vh] md:max-h-[90vh] md:max-w-2xl md:rounded-2xl md:border md:border-border"
             >
-              <div className="flex items-center justify-between border-b border-border p-6 bg-card">
+              <div className="flex items-center justify-between border-b border-border p-6 bg-card shrink-0">
                 <h2 className="text-xl font-bold">{editingService ? "Editar Serviço" : "Cadastrar Serviço"}</h2>
                 <button 
                   onClick={() => setIsFormOpen(false)}
@@ -1326,8 +1326,8 @@ function ServicosContent() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 overscroll-contain bg-background space-y-6">
-                <form id="service-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 overscroll-contain bg-background space-y-6">
                   {/* Opções de Empresa / Emissor e Nota Fiscal */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -1338,11 +1338,11 @@ function ServicosContent() {
                           onClick={() => setValue("empresa", "Silvio")}
                           className={`py-2.5 px-4 text-sm font-bold rounded-lg transition-all cursor-pointer ${
                             watch("empresa") === "Silvio" || !watch("empresa")
-                              ? "bg-primary text-primary-foreground shadow-sm"
-                              : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted"
+                              ? "bg-card text-foreground shadow-sm border border-border"
+                              : "text-muted-foreground hover:text-foreground"
                           }`}
                         >
-                          Silvio
+                          Silvio Sanga
                         </button>
                         <button
                           type="button"
@@ -1829,19 +1829,20 @@ function ServicosContent() {
                     </div>
                   </div>
 
-                  {/* Botão de Finalizar Cadastro */}
-                  <div className="pt-4">
-                    <button 
-                      type="submit" 
-                      disabled={isCompressing}
-                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-4 text-sm font-bold text-primary-foreground shadow-md hover:opacity-90 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
-                    >
-                      <Save className="h-5 w-5" />
-                      {editingService ? "Salvar Alterações" : "Finalizar Cadastro"}
-                    </button>
-                  </div>
-                </form>
-              </div>
+                </div>
+
+                {/* Footer Flutuante / Sempre Visível com o Botão de Salvar */}
+                <div className="p-4 bg-card border-t border-border shadow-xl shrink-0">
+                  <button 
+                    type="submit" 
+                    disabled={isCompressing}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3.5 text-base font-extrabold text-primary-foreground shadow-lg hover:opacity-95 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <Save className="h-5 w-5" />
+                    {editingService ? "Salvar Alterações" : "Finalizar Cadastro"}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}
