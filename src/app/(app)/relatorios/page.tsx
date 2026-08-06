@@ -1063,6 +1063,7 @@ export default function RelatoriosPage() {
       group.servicos.push(s);
       group.faturamentoOriginal += Number(s.valor) || 0;
       group.kmPercorrido += Number(s.kmPercorrido) || 0;
+      group.litrosAbastecidos += Number(s.consumoLitros) || 0;
       // Acumula pedágio e outros custos nas despesas do mês
       group.despesasPedagio += Number(s.valorPedagio) || 0;
       const outros = s.outrosCustos || [];
