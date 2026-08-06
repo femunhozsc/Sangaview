@@ -29,13 +29,15 @@ import {
   Search,
   UserCheck,
   Check,
-  FileText
+  FileText,
+  EyeOff
 } from "lucide-react";
 import { useCollection } from "@/hooks/useCollection";
 
 type OtherCost = {
   descricao: string;
   valor: number;
+  ocultarNoDocumento?: boolean;
 };
 
 type ServiceFormData = {
@@ -429,11 +431,13 @@ function ServicosContent() {
 
 
       // Detalhamento de Outros Custos
-      if (service.outrosCustos && service.outrosCustos.length > 0) {
-        drawSectionTitle("Detalhamento de Outros Custos");
-        const totalOutros = service.outrosCustos.reduce((acc: number, curr: any) => acc + curr.valor, 0);
+      const visibleOutrosCustos = (service.outrosCustos || []).filter((c: any) => !c.ocultarNoDocumento);
 
-        service.outrosCustos.forEach((c: any) => {
+      if (visibleOutrosCustos.length > 0) {
+        drawSectionTitle("Detalhamento de Outros Custos");
+        const totalOutros = visibleOutrosCustos.reduce((acc: number, curr: any) => acc + curr.valor, 0);
+
+        visibleOutrosCustos.forEach((c: any) => {
           if (currentY > 275) {
             doc.addPage();
             currentY = 20;
@@ -868,6 +872,15 @@ function ServicosContent() {
     setIsOtherCostModalOpen(true);
   };
 
+  const handleToggleHideCost = (index: number) => {
+    setTempOtherCosts(prev => prev.map((item, idx) => {
+      if (idx === index) {
+        return { ...item, ocultarNoDocumento: !item.ocultarNoDocumento };
+      }
+      return item;
+    }));
+  };
+
   const handleSaveCost = (e: React.FormEvent) => {
     e.preventDefault();
     if (!otherCostDesc.trim() || !otherCostValue) return;
@@ -875,7 +888,8 @@ function ServicosContent() {
     const valueNum = Number(otherCostValue) || 0;
     const newCost: OtherCost = {
       descricao: otherCostDesc.trim(),
-      valor: valueNum
+      valor: valueNum,
+      ocultarNoDocumento: editingCostIndex !== null ? tempOtherCosts[editingCostIndex].ocultarNoDocumento : false
     };
 
     if (editingCostIndex !== null) {
@@ -1762,23 +1776,45 @@ function ServicosContent() {
                     ) : (
                       <div className="space-y-2">
                         {tempOtherCosts.map((cost, idx) => (
-                          <div key={idx} className="flex justify-between items-center p-2.5 bg-card border border-border rounded-xl text-xs">
+                          <div key={idx} className="flex justify-between items-center p-2.5 bg-card border border-border rounded-xl text-xs gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleHideCost(idx)}
+                              className={`p-1.5 rounded-lg border transition-all flex items-center gap-1.5 text-[11px] font-bold cursor-pointer shrink-0 ${
+                                cost.ocultarNoDocumento
+                                  ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                                  : "bg-muted/40 text-muted-foreground border-border hover:bg-muted"
+                              }`}
+                              title={cost.ocultarNoDocumento ? "Oculto no Documento PDF (Clique para exibir)" : "Visível no Documento PDF (Clique para ocultar)"}
+                            >
+                              <div className={`h-3.5 w-3.5 rounded border flex items-center justify-center transition-colors ${
+                                cost.ocultarNoDocumento ? "bg-amber-500 border-amber-500 text-white" : "border-muted-foreground"
+                              }`}>
+                                {cost.ocultarNoDocumento && <Check className="h-2.5 w-2.5 stroke-[3]" />}
+                              </div>
+                              <span className="hidden sm:inline">{cost.ocultarNoDocumento ? "Oculto no Doc" : "Exibir no Doc"}</span>
+                            </button>
+
                             <div className="min-w-0 flex-1">
-                              <span className="font-semibold text-foreground truncate block">{cost.descricao}</span>
+                              <span className={`font-semibold truncate block ${cost.ocultarNoDocumento ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                                {cost.descricao}
+                              </span>
                               <span className="font-bold text-red-500">R$ {cost.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                             </div>
                             <div className="flex gap-1 shrink-0">
                               <button 
                                 type="button" 
                                 onClick={() => handleOpenEditCost(idx)}
-                                className="p-1.5 text-muted-foreground hover:bg-muted rounded transition-colors"
+                                className="p-1.5 text-muted-foreground hover:bg-muted rounded transition-colors cursor-pointer"
+                                title="Editar Custo"
                               >
                                 <Edit2 className="h-3.5 w-3.5" />
                               </button>
                               <button 
                                 type="button" 
                                 onClick={() => handleRemoveCost(idx)}
-                                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
+                                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer"
+                                title="Remover Custo"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
@@ -1855,11 +1891,11 @@ function ServicosContent() {
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsOtherCostModalOpen(false)}
-              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+              className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm"
             />
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 flex flex-col rounded-2xl bg-card border border-border shadow-2xl p-6 max-w-sm mx-auto"
+              className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[150] flex flex-col rounded-2xl bg-card border border-border shadow-2xl p-6 max-w-sm mx-auto"
             >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-lg flex items-center gap-2 text-foreground">

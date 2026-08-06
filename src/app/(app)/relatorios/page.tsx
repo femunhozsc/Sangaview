@@ -846,11 +846,13 @@ export default function RelatoriosPage() {
         ]);
       }
 
-      if (service.outrosCustos && service.outrosCustos.length > 0) {
-        drawSectionTitle("Detalhamento de Outros Custos");
-        const totalOutros = service.outrosCustos.reduce((acc: number, curr: any) => acc + curr.valor, 0);
+      const visibleOutrosCustos = (service.outrosCustos || []).filter((c: any) => !c.ocultarNoDocumento);
 
-        service.outrosCustos.forEach((c: any) => {
+      if (visibleOutrosCustos.length > 0) {
+        drawSectionTitle("Detalhamento de Outros Custos");
+        const totalOutros = visibleOutrosCustos.reduce((acc: number, curr: any) => acc + curr.valor, 0);
+
+        visibleOutrosCustos.forEach((c: any) => {
           if (currentY > 275) {
             doc.addPage();
             currentY = 20;
@@ -1843,11 +1845,11 @@ export default function RelatoriosPage() {
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsOtherCostModalOpen(false)}
-              className="fixed inset-0 z-[65] bg-black/60 backdrop-blur-sm"
+              className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm"
             />
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[65] flex flex-col rounded-2xl bg-card border border-border shadow-2xl p-6 max-w-sm mx-auto"
+              className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[150] flex flex-col rounded-2xl bg-card border border-border shadow-2xl p-6 max-w-sm mx-auto"
             >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-lg flex items-center gap-2 text-foreground">
