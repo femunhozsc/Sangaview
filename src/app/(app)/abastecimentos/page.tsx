@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, Save, Fuel, Calendar, Edit2, Trash2 } from "lucide-react";
@@ -15,12 +16,31 @@ type FuelFormData = {
 
 const initialMockFuel: any[] = [];
 
+function AbastecimentosContent() {
+  const searchParams = useSearchParams();
+  const targetId = searchParams.get("id");
 
-export default function AbastecimentosPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingFuel, setEditingFuel] = useState<any | null>(null);
   const { data: abastecimentos, loading, addDocument, updateDocument, deleteDocument } = useCollection("abastecimentos", initialMockFuel);
   const { register, handleSubmit, reset } = useForm<FuelFormData>();
+
+  useEffect(() => {
+    if (targetId && abastecimentos.length > 0) {
+      const found = abastecimentos.find((a: any) => String(a.id) === String(targetId));
+      if (found) {
+        setEditingFuel(found);
+        reset({
+          veiculo: found.veiculo,
+          data: found.data || "",
+          km: Number(found.km) || 0,
+          litros: Number(found.litros) || 0,
+          valor: Number(found.valor) || 0
+        });
+        setIsFormOpen(true);
+      }
+    }
+  }, [targetId, abastecimentos, reset]);
 
   const handleEdit = (item: any) => {
     setEditingFuel(item);
@@ -218,3 +238,12 @@ export default function AbastecimentosPage() {
     </div>
   );
 }
+
+export default function AbastecimentosPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-12 text-muted-foreground">Carregando abastecimentos...</div>}>
+      <AbastecimentosContent />
+    </Suspense>
+  );
+}
+

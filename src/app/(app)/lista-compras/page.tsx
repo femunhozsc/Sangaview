@@ -1,5 +1,6 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingCart, Plus, Trash2, Edit2, Check, ShoppingBag, ListChecks, X, Save } from "lucide-react";
 import { useCollection } from "@/hooks/useCollection";
@@ -15,8 +16,10 @@ type ShoppingItem = {
 
 const initialMockShopping: any[] = [];
 
+function ListaComprasContent() {
+  const searchParams = useSearchParams();
+  const targetId = searchParams.get("id");
 
-export default function ListaComprasPage() {
   const { data: compras, loading, addDocument, updateDocument, deleteDocument } = useCollection("compras", initialMockShopping);
   const [newItem, setNewItem] = useState("");
   const [newQty, setNewQty] = useState("");
@@ -27,6 +30,22 @@ export default function ListaComprasPage() {
   const [editName, setEditName] = useState("");
   const [editQty, setEditQty] = useState("");
   const [editPrice, setEditPrice] = useState("");
+
+  const handleStartEdit = (item: ShoppingItem) => {
+    setEditingItem(item);
+    setEditName(item.item);
+    setEditQty(item.quantidade);
+    setEditPrice(item.preco !== undefined ? String(item.preco) : "");
+  };
+
+  useEffect(() => {
+    if (targetId && compras.length > 0) {
+      const found = compras.find((c: any) => String(c.id) === String(targetId));
+      if (found) {
+        handleStartEdit(found);
+      }
+    }
+  }, [targetId, compras]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,13 +87,6 @@ export default function ListaComprasPage() {
         console.error("Erro ao excluir item de compra:", error);
       }
     }
-  };
-
-  const handleStartEdit = (item: ShoppingItem) => {
-    setEditingItem(item);
-    setEditName(item.item);
-    setEditQty(item.quantidade);
-    setEditPrice(item.preco !== undefined ? String(item.preco) : "");
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -377,3 +389,12 @@ export default function ListaComprasPage() {
     </div>
   );
 }
+
+export default function ListaComprasPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-12 text-muted-foreground">Carregando lista de compras...</div>}>
+      <ListaComprasContent />
+    </Suspense>
+  );
+}
+

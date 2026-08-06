@@ -1,5 +1,6 @@
 "use client";
 import { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   BarChart3, 
@@ -18,7 +19,8 @@ import {
   ShoppingCart,
   DollarSign,
   Coins,
-  Save
+  Save,
+  Download
 } from "lucide-react";
 import { useCollection } from "@/hooks/useCollection";
 
@@ -26,6 +28,23 @@ const initialMockServices: any[] = [];
 const initialMockFuel: any[] = [];
 const initialMockMaintenance: any[] = [];
 const initialMockShopping: any[] = [];
+
+const fetchImageAsBase64 = async (url: string): Promise<string> => {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    const blob = await res.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error("Erro ao converter imagem em base64:", error);
+    return "";
+  }
+};
 
 
 const monthNames: { [key: string]: string } = {
@@ -202,6 +221,327 @@ export default function RelatoriosPage() {
         console.error("Erro ao deletar registro:", error);
         alert("Erro ao excluir o registro.");
       }
+    }
+  };
+
+  const [isGeneratingMonthlyPDF, setIsGeneratingMonthlyPDF] = useState(false);
+
+  const generateMonthlyReportPDF = async (monthNum: string, yearNum: string, monthData: any) => {
+    if (!monthData) return;
+    setIsGeneratingMonthlyPDF(true);
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF();
+
+      const monthNameStr = monthNames[monthNum] || monthNum;
+      const logoBase64 = await fetchImageAsBase64("/Sanga-Logo-Docs.png");
+
+      // 1. Cabeçalho Corporativo (Silvio Aparecido Sanga)
+      if (logoBase64) {
+        try {
+          doc.addImage(logoBase64, "PNG", 20, 14, 52, 20.8);
+        } catch (err) {
+          console.error("Erro ao adicionar logo ao PDF:", err);
+        }
+      } else {
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(16);
+        doc.setTextColor(33, 33, 33);
+        doc.text("SANGA AUTO SOCORRO", 20, 25);
+      }
+
+      // Dados da Empresa Silvio
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(33, 33, 33);
+      doc.text("21.475.238 SILVIO APARECIDO SANGA", 190, 18, { align: "right" });
+      
+      doc.setFont("Helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(85, 85, 85);
+      doc.text("CNPJ: 21.475.238/0001-43", 190, 22, { align: "right" });
+      doc.text("Avenida Comendador Norberto Marcondes, 453", 190, 26, { align: "right" });
+      doc.text("Campo Mourão, Paraná", 190, 30, { align: "right" });
+      doc.text("sangaautosocorro@hotmail.com", 190, 34, { align: "right" });
+
+      // Linhas Decorativas (Grafite e Dourada)
+      doc.setDrawColor(51, 51, 51);
+      doc.setLineWidth(1.2);
+      doc.line(20, 38, 190, 38);
+      
+      doc.setDrawColor(197, 160, 89);
+      doc.setLineWidth(0.6);
+      doc.line(20, 39.2, 190, 39.2);
+
+      // Título do Documento
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(51, 51, 51);
+      const titleStr = `RESUMO OPERACIONAL DE ${monthNameStr.toUpperCase()} DE ${yearNum}`;
+      doc.text(titleStr, 105, 48, { align: "center" });
+
+      doc.setFont("Helvetica", "italic");
+      doc.setFontSize(8.5);
+      doc.setTextColor(119, 119, 119);
+      const dateStr = new Date().toLocaleString("pt-BR");
+      doc.text(`Relatório Mensal Consolidado | Gerado em: ${dateStr}`, 105, 53, { align: "center" });
+
+      let currentY = 62;
+
+      const drawSectionTitle = (title: string) => {
+        if (currentY > 250) {
+          doc.addPage();
+          currentY = 20;
+        }
+        currentY += 4;
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(10.5);
+        doc.setTextColor(51, 51, 51);
+        doc.text(title.toUpperCase(), 20, currentY);
+        
+        currentY += 2;
+        doc.setDrawColor(51, 51, 51);
+        doc.setLineWidth(0.4);
+        doc.line(20, currentY, 190, currentY);
+        currentY += 6;
+      };
+
+      // Métricas Financeiras e Operacionais
+      const totalAtendimentos = monthData.servicos.length;
+      const faturamentoTotal = monthData.faturamento || 0;
+      const despesasTotais = (
+        monthData.despesasCombustivel + 
+        monthData.despesasManutencao + 
+        monthData.despesasPedagio + 
+        monthData.despesasOutrosCustos +
+        monthData.faturamentoDesconto
+      );
+      const lucroLiquido = monthData.lucroLiquido || (faturamentoTotal - despesasTotais);
+      const mediaPorAtendimento = totalAtendimentos > 0 ? faturamentoTotal / totalAtendimentos : 0;
+
+      // 1. Resumo Financeiro & Operacional
+      drawSectionTitle("1. Resumo Financeiro e Geral");
+      
+      const kpis = [
+        { label: "Total de Atendimentos Realizados", val: `${totalAtendimentos} chamados` },
+        { label: "Faturamento Bruto Total", val: `R$ ${faturamentoTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
+        { label: "Despesas Totais Estimadas", val: `R$ ${despesasTotais.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
+        { label: "Lucro Líquido Estimado", val: `R$ ${lucroLiquido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
+        { label: "Média de Faturamento por Atendimento", val: `R$ ${mediaPorAtendimento.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` }
+      ];
+
+      kpis.forEach(kpi => {
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(102, 102, 102);
+        doc.text(`${kpi.label}:`, 20, currentY);
+        
+        doc.setFont("Helvetica", "normal");
+        doc.setTextColor(33, 33, 33);
+        doc.text(kpi.val, 95, currentY);
+        currentY += 5.5;
+      });
+      currentY += 2;
+
+      // Algoritmo de identificação da empresa/cliente que mais chamou
+      const topClient = (() => {
+        if (!monthData.servicos || monthData.servicos.length === 0) return null;
+        
+        const clientMap: { [key: string]: { name: string; count: number; valor: number } } = {};
+        
+        monthData.servicos.forEach((s: any) => {
+          const rawName = (s.cliente || "").trim();
+          if (!rawName) return;
+          
+          const normalized = rawName
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toUpperCase()
+            .replace(/[^A-Z0-9\s]/g, "")
+            .replace(/\b(LTDA|SA|S\/A|ME|EPP|LOGISTICA|TRANSPORTE|TRANSPORTES|SOCORRO|AUTO)\b/g, "")
+            .trim()
+            .replace(/\s+/g, " ");
+
+          if (!normalized) return;
+
+          if (!clientMap[normalized]) {
+            clientMap[normalized] = { name: rawName, count: 0, valor: 0 };
+          }
+          clientMap[normalized].count += 1;
+          clientMap[normalized].valor += Number(s.valor) || 0;
+        });
+
+        const sorted = Object.values(clientMap).sort((a, b) => {
+          if (b.count !== a.count) return b.count - a.count;
+          return b.valor - a.valor;
+        });
+
+        if (sorted.length === 0) return null;
+
+        // Se houver múltiplos clientes e o que mais chamou tiver apenas 1 atendimento, não destaca
+        if (sorted.length > 1 && sorted[0].count === 1) {
+          return null;
+        }
+
+        return sorted[0];
+      })();
+
+      let secNum = 2;
+
+      if (topClient) {
+        drawSectionTitle(`${secNum}. Empresa / Cliente com Maior Volume no Mês`);
+        secNum++;
+
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(102, 102, 102);
+        doc.text("Empresa / Cliente Principal:", 20, currentY);
+        doc.setFont("Helvetica", "normal");
+        doc.setTextColor(33, 33, 33);
+        doc.text(`${topClient.name}`, 95, currentY);
+        currentY += 5.5;
+
+        doc.setFont("Helvetica", "bold");
+        doc.setTextColor(102, 102, 102);
+        doc.text("Total de Chamados:", 20, currentY);
+        doc.setFont("Helvetica", "normal");
+        doc.setTextColor(33, 33, 33);
+        doc.text(`${topClient.count} atendimentos (${Math.round((topClient.count / Math.max(totalAtendimentos, 1)) * 100)}% dos serviços do mês)`, 95, currentY);
+        currentY += 5.5;
+
+        doc.setFont("Helvetica", "bold");
+        doc.setTextColor(102, 102, 102);
+        doc.text("Faturamento Gerado:", 20, currentY);
+        doc.setFont("Helvetica", "normal");
+        doc.setTextColor(33, 33, 33);
+        doc.text(`R$ ${topClient.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, 95, currentY);
+        currentY += 7.5;
+      }
+
+      // 3. Desempenho da Frota & Combustível
+      drawSectionTitle(`${secNum}. Desempenho da Frota e Combustível`);
+      secNum++;
+
+      const totalKm = monthData.kmPercorrido || 0;
+      const totalLitros = monthData.litrosAbastecidos || 0;
+      const gastoCombustivel = monthData.despesasCombustivel || 0;
+      const mediaKmL = totalLitros > 0 && totalKm > 0 ? (totalKm / totalLitros).toFixed(2) : "0";
+      const custoPorKm = totalKm > 0 ? (despesasTotais / totalKm).toFixed(2) : "0";
+
+      const frotaStats = [
+        { label: "Distância Total Rodada", val: `${totalKm.toLocaleString("pt-BR")} km` },
+        { label: "Volume de Diesel Consumido", val: `${totalLitros.toLocaleString("pt-BR")} Litros` },
+        { label: "Gasto com Combustível", val: `R$ ${gastoCombustivel.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
+        { label: "Média Geral de Consumo", val: `${mediaKmL} km/L` },
+        { label: "Custo Médio por KM Rodado", val: `R$ ${custoPorKm} / km` }
+      ];
+
+      frotaStats.forEach(st => {
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(102, 102, 102);
+        doc.text(`${st.label}:`, 20, currentY);
+        
+        doc.setFont("Helvetica", "normal");
+        doc.setTextColor(33, 33, 33);
+        doc.text(st.val, 95, currentY);
+        currentY += 5.5;
+      });
+      currentY += 2;
+
+      // 4. Detalhamento de Custos e Despesas
+      drawSectionTitle(`${secNum}. Composição Detalhada das Despesas`);
+      secNum++;
+
+      const despesasBreakdown = [
+        { label: "Abastecimento de Combustível", val: monthData.despesasCombustivel || 0 },
+        { label: "Manutenção de Veículos & Peças", val: monthData.despesasManutencao || 0 },
+        { label: "Pedágios em Atendimentos", val: monthData.despesasPedagio || 0 },
+        { label: "Outros Custos Operacionais", val: monthData.despesasOutrosCustos || 0 },
+        { label: "Compras de Insumos Concluídas", val: monthData.faturamentoDesconto || 0 }
+      ];
+
+      despesasBreakdown.forEach(item => {
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(102, 102, 102);
+        doc.text(`${item.label}:`, 20, currentY);
+
+        doc.setFont("Helvetica", "normal");
+        doc.setTextColor(153, 51, 51);
+        const valStr = `R$ ${Number(item.val).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+        doc.text(valStr, 95, currentY);
+        currentY += 5.5;
+      });
+      currentY += 4;
+
+      // 5. Tabela Resumida dos Serviços do Mês
+      if (monthData.servicos && monthData.servicos.length > 0) {
+        drawSectionTitle(`${secNum}. Relação de Serviços Realizados`);
+        
+        doc.setFillColor(240, 240, 240);
+        doc.rect(20, currentY, 170, 6, "F");
+        
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(51, 51, 51);
+        doc.text("DATA", 22, currentY + 4);
+        doc.text("CLIENTE", 45, currentY + 4);
+        doc.text("VEÍCULO", 95, currentY + 4);
+        doc.text("PERCURSO", 130, currentY + 4);
+        doc.text("VALOR (R$)", 188, currentY + 4, { align: "right" });
+        
+        currentY += 8;
+
+        monthData.servicos.forEach((s: any) => {
+          if (currentY > 275) {
+            doc.addPage();
+            currentY = 20;
+          }
+
+          doc.setFont("Helvetica", "normal");
+          doc.setFontSize(7.5);
+          doc.setTextColor(33, 33, 33);
+
+          const dateStrShort = s.data ? s.data.split("-").reverse().join("/") : "-";
+          const clientStr = (s.cliente || "").slice(0, 24);
+          const vehicleStr = (s.veiculo || "-").slice(0, 16);
+          const routeStr = `${s.origem || ""} -> ${s.destino || ""}`.slice(0, 24);
+          const valStr = Number(s.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+
+          doc.text(dateStrShort, 22, currentY);
+          doc.text(clientStr, 45, currentY);
+          doc.text(vehicleStr, 95, currentY);
+          doc.text(routeStr, 130, currentY);
+          doc.text(valStr, 188, currentY, { align: "right" });
+
+          currentY += 5;
+        });
+      }
+
+      // Rodapé dinâmico em todas as páginas
+      const totalPages = doc.getNumberOfPages();
+      for (let p = 1; p <= totalPages; p++) {
+        doc.setPage(p);
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.2);
+        doc.line(20, 282, 190, 282);
+        
+        doc.setFont("Helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Sanga Auto Socorro - Resumo Operacional de ${monthNameStr}/${yearNum}`, 20, 287);
+        doc.text(`Página ${p} de ${totalPages}`, 190, 287, { align: "right" });
+      }
+
+      const filename = `resumo-operacional-${monthNameStr.toLowerCase()}-${yearNum}.pdf`;
+      doc.save(filename);
+
+    } catch (err) {
+      console.error("Erro ao gerar relatório PDF:", err);
+      alert("Ocorreu um erro ao gerar o relatório mensal.");
+    } finally {
+      setIsGeneratingMonthlyPDF(false);
     }
   };
 
@@ -493,11 +833,31 @@ export default function RelatoriosPage() {
                   className="space-y-6"
                 >
                   <div className="bg-card rounded-2xl p-6 border border-border shadow-sm space-y-6">
-                    <div className="border-b border-border pb-4">
-                      <h2 className="text-xl font-bold">
-                        Dados de {monthNames[selectedMonth] || selectedMonth} de {selectedYear}
-                      </h2>
-                      <p className="text-xs text-muted-foreground mt-1">Visão consolidada com custos de compras de R$ {activeMonthData.faturamentoDesconto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} incluídos no lucro</p>
+                    <div className="border-b border-border pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h2 className="text-xl font-bold">
+                          Dados de {monthNames[selectedMonth] || selectedMonth} de {selectedYear}
+                        </h2>
+                        <p className="text-xs text-muted-foreground mt-1">Visão consolidada com custos de compras de R$ {activeMonthData.faturamentoDesconto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} incluídos no lucro</p>
+                      </div>
+
+                      <button
+                        onClick={() => generateMonthlyReportPDF(selectedMonth, selectedYear, activeMonthData)}
+                        disabled={isGeneratingMonthlyPDF}
+                        className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-90 active:scale-95 transition-all cursor-pointer shrink-0 disabled:opacity-50"
+                      >
+                        {isGeneratingMonthlyPDF ? (
+                          <>
+                            <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent animate-spin rounded-full" />
+                            Gerando PDF...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="h-4 w-4" />
+                            Criar Relatório PDF
+                          </>
+                        )}
+                      </button>
                     </div>
 
                     {/* KPIs */}
@@ -589,17 +949,24 @@ export default function RelatoriosPage() {
                           <div className="p-8 text-center text-sm text-muted-foreground">Nenhum serviço registrado neste mês.</div>
                         ) : (
                           activeMonthData.servicos.map((s, index) => (
-                            <div key={s.id || index} className="p-4 flex flex-col justify-between text-sm hover:bg-muted/10 gap-2 border-b border-border/40 last:border-0">
+                            <div key={s.id || index} className="p-4 flex flex-col justify-between text-sm hover:bg-muted/30 transition-colors gap-2 border-b border-border/40 last:border-0">
                               <div className="flex justify-between items-center w-full gap-4">
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-semibold text-foreground truncate">{s.cliente} ({s.veiculo})</p>
+                                <Link 
+                                  href={`/servicos?id=${s.id}`}
+                                  className="flex-1 min-w-0 group cursor-pointer"
+                                  title="Ver detalhes do serviço"
+                                >
+                                  <p className="font-semibold text-foreground truncate group-hover:text-primary transition-colors flex items-center gap-1.5">
+                                    {s.cliente} ({s.veiculo || "Geral"})
+                                    <ChevronRight className="h-3.5 w-3.5 opacity-40 group-hover:opacity-100 transition-opacity" />
+                                  </p>
                                   <p className="text-xs text-muted-foreground mt-0.5 truncate">{s.origem} → {s.destino} | {s.data}</p>
-                                </div>
+                                </Link>
                                 <div className="flex items-center gap-3 shrink-0">
                                   <span className="font-bold text-green-500">R$ {Number(s.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                                   <div className="flex gap-1">
-                                    <button onClick={() => handleStartEdit(s, "servico")} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded transition-colors cursor-pointer" title="Editar"><Edit2 className="h-3.5 w-3.5" /></button>
-                                    <button onClick={() => handleDeleteItem(s.id, "servico")} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); handleStartEdit(s, "servico"); }} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded transition-colors cursor-pointer" title="Editar"><Edit2 className="h-3.5 w-3.5" /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteItem(s.id, "servico"); }} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
                                   </div>
                                 </div>
                               </div>
@@ -622,16 +989,23 @@ export default function RelatoriosPage() {
                           <div className="p-8 text-center text-sm text-muted-foreground">Nenhum abastecimento registrado neste mês.</div>
                         ) : (
                           activeMonthData.abastecimentos.map((a, index) => (
-                            <div key={a.id || index} className="p-4 flex justify-between items-center text-sm hover:bg-muted/20 gap-4">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-foreground truncate">{a.veiculo || "Geral"}</p>
+                            <div key={a.id || index} className="p-4 flex justify-between items-center text-sm hover:bg-muted/30 transition-colors gap-4">
+                              <Link 
+                                href={`/abastecimentos?id=${a.id}`}
+                                className="flex-1 min-w-0 group cursor-pointer"
+                                title="Ver detalhes do abastecimento"
+                              >
+                                <p className="font-semibold text-foreground truncate group-hover:text-amber-500 transition-colors flex items-center gap-1.5">
+                                  {a.veiculo || "Geral"}
+                                  <ChevronRight className="h-3.5 w-3.5 opacity-40 group-hover:opacity-100 transition-opacity" />
+                                </p>
                                 <p className="text-xs text-muted-foreground mt-0.5 truncate">{a.litros} Litros | KM: {Number(a.km || 0).toLocaleString("pt-BR")} | {a.data}</p>
-                              </div>
+                              </Link>
                               <div className="flex items-center gap-3 shrink-0">
                                 <span className="font-bold text-red-500">R$ {Number(a.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                                 <div className="flex gap-1">
-                                  <button onClick={() => handleStartEdit(a, "abastecimento")} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded transition-colors cursor-pointer" title="Editar"><Edit2 className="h-3.5 w-3.5" /></button>
-                                  <button onClick={() => handleDeleteItem(a.id, "abastecimento")} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
+                                  <button onClick={(e) => { e.stopPropagation(); handleStartEdit(a, "abastecimento"); }} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded transition-colors cursor-pointer" title="Editar"><Edit2 className="h-3.5 w-3.5" /></button>
+                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteItem(a.id, "abastecimento"); }} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
                                 </div>
                               </div>
                             </div>
@@ -644,16 +1018,23 @@ export default function RelatoriosPage() {
                           <div className="p-8 text-center text-sm text-muted-foreground">Nenhuma manutenção registrada neste mês.</div>
                         ) : (
                           activeMonthData.manutencoes.map((m, index) => (
-                            <div key={m.id || index} className="p-4 flex justify-between items-center text-sm hover:bg-muted/20 gap-4">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-foreground truncate">{m.tipo} ({m.veiculo})</p>
+                            <div key={m.id || index} className="p-4 flex justify-between items-center text-sm hover:bg-muted/30 transition-colors gap-4">
+                              <Link 
+                                href={`/manutencoes?id=${m.id}`}
+                                className="flex-1 min-w-0 group cursor-pointer"
+                                title="Ver detalhes da manutenção"
+                              >
+                                <p className="font-semibold text-foreground truncate group-hover:text-blue-500 transition-colors flex items-center gap-1.5">
+                                  {m.tipo} ({m.veiculo})
+                                  <ChevronRight className="h-3.5 w-3.5 opacity-40 group-hover:opacity-100 transition-opacity" />
+                                </p>
                                 <p className="text-xs text-muted-foreground mt-0.5 truncate">KM: {Number(m.km || 0).toLocaleString("pt-BR")} | {m.data}</p>
-                              </div>
+                              </Link>
                               <div className="flex items-center gap-3 shrink-0">
                                 <span className="font-bold text-red-500">R$ {Number(m.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                                 <div className="flex gap-1">
-                                  <button onClick={() => handleStartEdit(m, "manutencao")} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded transition-colors cursor-pointer" title="Editar"><Edit2 className="h-3.5 w-3.5" /></button>
-                                  <button onClick={() => handleDeleteItem(m.id, "manutencao")} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
+                                  <button onClick={(e) => { e.stopPropagation(); handleStartEdit(m, "manutencao"); }} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded transition-colors cursor-pointer" title="Editar"><Edit2 className="h-3.5 w-3.5" /></button>
+                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteItem(m.id, "manutencao"); }} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
                                 </div>
                               </div>
                             </div>
@@ -666,16 +1047,23 @@ export default function RelatoriosPage() {
                           <div className="p-8 text-center text-sm text-muted-foreground">Nenhuma compra finalizada neste mês.</div>
                         ) : (
                           activeMonthData.compras.map((c, index) => (
-                            <div key={c.id || index} className="p-4 flex justify-between items-center text-sm hover:bg-muted/20 gap-4">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-foreground truncate">{c.item} ({c.quantidade})</p>
+                            <div key={c.id || index} className="p-4 flex justify-between items-center text-sm hover:bg-muted/30 transition-colors gap-4">
+                              <Link 
+                                href={`/lista-compras?id=${c.id}`}
+                                className="flex-1 min-w-0 group cursor-pointer"
+                                title="Ver lista de compras"
+                              >
+                                <p className="font-semibold text-foreground truncate group-hover:text-amber-500 transition-colors flex items-center gap-1.5">
+                                  {c.item} ({c.quantidade})
+                                  <ChevronRight className="h-3.5 w-3.5 opacity-40 group-hover:opacity-100 transition-opacity" />
+                                </p>
                                 <p className="text-xs text-muted-foreground mt-0.5 truncate">Comprado em: {c.compradoEm}</p>
-                              </div>
+                              </Link>
                               <div className="flex items-center gap-3 shrink-0">
                                 <span className="font-bold text-amber-600 dark:text-amber-400">R$ {Number(c.preco || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                                 <div className="flex gap-1">
-                                  <button onClick={() => handleStartEdit(c, "compra")} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded transition-colors cursor-pointer" title="Editar"><Edit2 className="h-3.5 w-3.5" /></button>
-                                  <button onClick={() => handleDeleteItem(c.id, "compra")} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
+                                  <button onClick={(e) => { e.stopPropagation(); handleStartEdit(c, "compra"); }} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded transition-colors cursor-pointer" title="Editar"><Edit2 className="h-3.5 w-3.5" /></button>
+                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteItem(c.id, "compra"); }} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
                                 </div>
                               </div>
                             </div>

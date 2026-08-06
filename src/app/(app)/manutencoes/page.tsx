@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, Save, Wrench, CalendarCheck, Edit2, Trash2 } from "lucide-react";
@@ -16,12 +17,32 @@ type MaintenanceFormData = {
 
 const initialMockMaintenance: any[] = [];
 
+function ManutencoesContent() {
+  const searchParams = useSearchParams();
+  const targetId = searchParams.get("id");
 
-export default function ManutencoesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingMaintenance, setEditingMaintenance] = useState<any | null>(null);
   const { data: manutencoes, loading, addDocument, updateDocument, deleteDocument } = useCollection("manutencoes", initialMockMaintenance);
   const { register, handleSubmit, reset } = useForm<MaintenanceFormData>();
+
+  useEffect(() => {
+    if (targetId && manutencoes.length > 0) {
+      const found = manutencoes.find((m: any) => String(m.id) === String(targetId));
+      if (found) {
+        setEditingMaintenance(found);
+        reset({
+          tipo: found.tipo,
+          data: found.data || "",
+          km: Number(found.km) || 0,
+          valor: Number(found.valor) || 0,
+          observacoes: found.observacoes || "",
+          veiculo: found.veiculo
+        });
+        setIsFormOpen(true);
+      }
+    }
+  }, [targetId, manutencoes, reset]);
 
   const handleEdit = (item: any) => {
     setEditingMaintenance(item);
@@ -228,3 +249,12 @@ export default function ManutencoesPage() {
     </div>
   );
 }
+
+export default function ManutencoesPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-12 text-muted-foreground">Carregando manutenções...</div>}>
+      <ManutencoesContent />
+    </Suspense>
+  );
+}
+

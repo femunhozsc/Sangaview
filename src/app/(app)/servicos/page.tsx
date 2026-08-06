@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -22,7 +23,12 @@ import {
   DollarSign,
   Fuel,
   Coins,
-  Download
+  Download,
+  Filter,
+  SlidersHorizontal,
+  Search,
+  UserCheck,
+  Check
 } from "lucide-react";
 import { useCollection } from "@/hooks/useCollection";
 
@@ -169,7 +175,12 @@ const getImageDimensions = (base64: string): Promise<{ width: number; height: nu
   });
 };
 
-export default function ServicosPage() {
+function ServicosContent() {
+  const searchParams = useSearchParams();
+  const targetId = searchParams.get("id");
+
+  const { data: servicos, loading, addDocument, updateDocument, deleteDocument } = useCollection("servicos", initialMockServices);
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingService, setEditingService] = useState<any | null>(null);
   const [viewingService, setViewingService] = useState<any | null>(null);
@@ -188,6 +199,15 @@ export default function ServicosPage() {
   const [otherCostDesc, setOtherCostDesc] = useState("");
   const [otherCostValue, setOtherCostValue] = useState("");
   const [editingCostIndex, setEditingCostIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (targetId && servicos && servicos.length > 0) {
+      const found = servicos.find((s: any) => String(s.id) === String(targetId));
+      if (found) {
+        setViewingService(found);
+      }
+    }
+  }, [targetId, servicos]);
 
   const generateServicePDF = async (service: any, isOrcamento: boolean = false, customTitleInput: string = "") => {
     setIsGeneratingPDF(true);
@@ -580,8 +600,178 @@ export default function ServicosPage() {
     }
   };
 
-  const { data: servicos, loading, addDocument, updateDocument, deleteDocument } = useCollection("servicos", initialMockServices);
   const { register, watch, handleSubmit, reset, setValue } = useForm<ServiceFormData>();
+
+  // Database de clientes extraído dos serviços cadastrados (o registro mais recente prevalece)
+  const clientsDatabase = useMemo(() => {
+    const db: { 
+      [normalizedName: string]: { 
+        name: string; 
+        telefone: string; 
+        emailCliente: string; 
+        cnpjCliente: string; 
+        enderecoCliente: string; 
+        cidadeCliente: string; 
+      } 
+    } = {};
+
+    const sorted = [...servicos].sort((a, b) => {
+      const dateA = a.data || "";
+      const dateB = b.data || "";
+      return dateB.localeCompare(dateA);
+    });
+
+    sorted.forEach(s => {
+      const name = (s.cliente || "").trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      if (!db[key]) {
+        db[key] = {
+          name: name,
+          telefone: s.telefone || "",
+          emailCliente: s.emailCliente || "",
+          cnpjCliente: s.cnpjCliente || "",
+          enderecoCliente: s.enderecoCliente || "",
+          cidadeCliente: s.cidadeCliente || ""
+        };
+      }
+    });
+
+    return db;
+  }, [servicos]);
+
+  // Autocomplete do Formulário de Cadastro/Edição
+  const watchedCliente = watch("cliente");
+  const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+
+  const clientSuggestions = useMemo(() => {
+    const term = (watchedCliente || "").trim().toLowerCase();
+    if (!term || term.length < 1) return [];
+    return Object.values(clientsDatabase).filter(c => 
+      c.name.toLowerCase().includes(term)
+    ).slice(0, 6);
+  }, [watchedCliente, clientsDatabase]);
+
+  const handleSelectClientSuggestion = (clientData: any) => {
+    setValue("cliente", clientData.name, { shouldValidate: true });
+    setValue("telefone", clientData.telefone || "", { shouldValidate: true });
+    setValue("cnpjCliente", clientData.cnpjCliente || "", { shouldValidate: true });
+    setValue("emailCliente", clientData.emailCliente || "", { shouldValidate: true });
+    setValue("enderecoCliente", clientData.enderecoCliente || "", { shouldValidate: true });
+    setValue("cidadeCliente", clientData.cidadeCliente || "", { shouldValidate: true });
+    setShowClientSuggestions(false);
+  };
+
+  // Estados para Filtros Avançados
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [filterSearchText, setFilterSearchText] = useState("");
+  const [filterCliente, setFilterCliente] = useState("");
+  const [showFilterClientSuggestions, setShowFilterClientSuggestions] = useState(false);
+  const [filterDataInicio, setFilterDataInicio] = useState("");
+  const [filterDataFim, setFilterDataFim] = useState("");
+  const [filterValorMin, setFilterValorMin] = useState("");
+  const [filterValorMax, setFilterValorMax] = useState("");
+  const [filterKmMin, setFilterKmMin] = useState("");
+  const [filterKmMax, setFilterKmMax] = useState("");
+  const [filterEmpresa, setFilterEmpresa] = useState<string>("Todas");
+
+  const filterClientSuggestions = useMemo(() => {
+    const term = filterCliente.trim().toLowerCase();
+    if (!term) return [];
+    return Object.values(clientsDatabase).filter(c => 
+      c.name.toLowerCase().includes(term)
+    ).slice(0, 5);
+  }, [filterCliente, clientsDatabase]);
+
+  const clearAllFilters = () => {
+    setFilterSearchText("");
+    setFilterCliente("");
+    setFilterDataInicio("");
+    setFilterDataFim("");
+    setFilterValorMin("");
+    setFilterValorMax("");
+    setFilterKmMin("");
+    setFilterKmMax("");
+    setFilterEmpresa("Todas");
+  };
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (filterSearchText.trim()) count++;
+    if (filterCliente.trim()) count++;
+    if (filterDataInicio) count++;
+    if (filterDataFim) count++;
+    if (filterValorMin) count++;
+    if (filterValorMax) count++;
+    if (filterKmMin) count++;
+    if (filterKmMax) count++;
+    if (filterEmpresa && filterEmpresa !== "Todas") count++;
+    return count;
+  }, [
+    filterSearchText, filterCliente, filterDataInicio, filterDataFim,
+    filterValorMin, filterValorMax, filterKmMin, filterKmMax, filterEmpresa
+  ]);
+
+  const filteredServicos = useMemo(() => {
+    return servicos.filter(s => {
+      // Data De
+      if (filterDataInicio && (s.data || "") < filterDataInicio) return false;
+      // Data Até
+      if (filterDataFim && (s.data || "") > filterDataFim) return false;
+
+      // Cliente
+      if (filterCliente.trim()) {
+        const cTerm = filterCliente.trim().toLowerCase();
+        if (!(s.cliente || "").toLowerCase().includes(cTerm)) return false;
+      }
+
+      // Valor Min
+      const val = Number(s.valor) || 0;
+      if (filterValorMin && val < Number(filterValorMin)) return false;
+      // Valor Max
+      if (filterValorMax && val > Number(filterValorMax)) return false;
+
+      // KM Distância Min / Max
+      const kmPercorrido = Math.max(0, (Number(s.kmFinal) || 0) - (Number(s.kmInicial) || 0));
+      if (filterKmMin && kmPercorrido < Number(filterKmMin)) return false;
+      if (filterKmMax && kmPercorrido > Number(filterKmMax)) return false;
+
+      // Empresa
+      if (filterEmpresa && filterEmpresa !== "Todas") {
+        if ((s.empresa || "Silvio") !== filterEmpresa) return false;
+      }
+
+      // Termo Geral de Pesquisa
+      if (filterSearchText.trim()) {
+        const term = filterSearchText.trim().toLowerCase();
+        const match = 
+          String(s.id).toLowerCase().includes(term) ||
+          (s.cliente || "").toLowerCase().includes(term) ||
+          (s.veiculo || "").toLowerCase().includes(term) ||
+          (s.placa || "").toLowerCase().includes(term) ||
+          (s.origem || "").toLowerCase().includes(term) ||
+          (s.destino || "").toLowerCase().includes(term) ||
+          (s.cidadeCliente || "").toLowerCase().includes(term);
+        if (!match) return false;
+      }
+
+      return true;
+    });
+  }, [
+    servicos, filterDataInicio, filterDataFim, filterCliente,
+    filterValorMin, filterValorMax, filterKmMin, filterKmMax, filterEmpresa, filterSearchText
+  ]);
+
+  const totalFaturamentoFiltrado = useMemo(() => {
+    return filteredServicos.reduce((acc, s) => acc + (Number(s.valor) || 0), 0);
+  }, [filteredServicos]);
+
+  const totalKmFiltrado = useMemo(() => {
+    return filteredServicos.reduce((acc, s) => {
+      const diff = Math.max(0, (Number(s.kmFinal) || 0) - (Number(s.kmInicial) || 0));
+      return acc + diff;
+    }, 0);
+  }, [filteredServicos]);
 
   const kmInicial = watch("kmInicial", 0);
   const kmFinal = watch("kmFinal", 0);
@@ -817,17 +1007,224 @@ export default function ServicosPage() {
         </button>
       </div>
 
+      {/* Barra de Busca e Filtros Avançados */}
+      <div className="bg-card rounded-2xl border border-border p-4 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          {/* Busca Rápida */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input 
+              type="text"
+              value={filterSearchText}
+              onChange={e => setFilterSearchText(e.target.value)}
+              placeholder="Buscar por cliente, veículo, placa, trajeto ou ID..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-input bg-background text-sm outline-none focus:border-primary transition-all"
+            />
+            {filterSearchText && (
+              <button 
+                onClick={() => setFilterSearchText("")} 
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Botão de Expansão de Filtros */}
+          <button
+            onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all cursor-pointer ${
+              isFilterPanelOpen || activeFiltersCount > 0
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-input bg-background hover:bg-muted text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            <span>Filtros</span>
+            {activeFiltersCount > 0 && (
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Painel de Filtros Avançados Expandível */}
+        <AnimatePresence>
+          {isFilterPanelOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden border-t border-border pt-4 space-y-4"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Filtro de Período (Data De / Até) */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">Data Inicial (De)</label>
+                  <input 
+                    type="date"
+                    value={filterDataInicio}
+                    onChange={e => setFilterDataInicio(e.target.value)}
+                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs outline-none focus:border-primary"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">Data Final (Até)</label>
+                  <input 
+                    type="date"
+                    value={filterDataFim}
+                    onChange={e => setFilterDataFim(e.target.value)}
+                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs outline-none focus:border-primary"
+                  />
+                </div>
+
+                {/* Filtro de Cliente com Autocomplete */}
+                <div className="space-y-1.5 relative">
+                  <label className="text-xs font-semibold text-muted-foreground">Filtrar por Cliente</label>
+                  <input 
+                    type="text"
+                    value={filterCliente}
+                    onChange={e => {
+                      setFilterCliente(e.target.value);
+                      setShowFilterClientSuggestions(true);
+                    }}
+                    onFocus={() => setShowFilterClientSuggestions(true)}
+                    placeholder="Digite o nome do cliente..."
+                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs outline-none focus:border-primary"
+                  />
+                  {showFilterClientSuggestions && filterClientSuggestions.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border border-border bg-card shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+                      {filterClientSuggestions.map((c, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setFilterCliente(c.name);
+                            setShowFilterClientSuggestions(false);
+                          }}
+                          className="w-full text-left px-3 py-2 text-xs hover:bg-muted font-medium border-b border-border/40 last:border-0 block"
+                        >
+                          {c.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Filtro de Empresa */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">Empresa Emissora</label>
+                  <div className="grid grid-cols-3 gap-1 p-1 bg-muted rounded-xl border border-border text-xs">
+                    {(["Todas", "Silvio", "Elizia"] as const).map((emp) => (
+                      <button
+                        key={emp}
+                        type="button"
+                        onClick={() => setFilterEmpresa(emp)}
+                        className={`py-1.5 rounded-lg font-bold transition-all ${
+                          filterEmpresa === emp 
+                            ? "bg-card text-foreground shadow-sm" 
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {emp}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Filtro de Valor (Min - Max) */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">Valor Mínimo (R$)</label>
+                  <input 
+                    type="number"
+                    value={filterValorMin}
+                    onChange={e => setFilterValorMin(e.target.value)}
+                    placeholder="Ex: 100"
+                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs outline-none focus:border-primary"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">Valor Máximo (R$)</label>
+                  <input 
+                    type="number"
+                    value={filterValorMax}
+                    onChange={e => setFilterValorMax(e.target.value)}
+                    placeholder="Ex: 5000"
+                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs outline-none focus:border-primary"
+                  />
+                </div>
+
+                {/* Filtro de Distância (Min - Max KM) */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">KM Mínimo</label>
+                  <input 
+                    type="number"
+                    value={filterKmMin}
+                    onChange={e => setFilterKmMin(e.target.value)}
+                    placeholder="Ex: 50"
+                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs outline-none focus:border-primary"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">KM Máximo</label>
+                  <input 
+                    type="number"
+                    value={filterKmMax}
+                    onChange={e => setFilterKmMax(e.target.value)}
+                    placeholder="Ex: 1000"
+                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Ações do Filtro e Resumo */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-border/60">
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <span>Resultados: <strong className="text-foreground font-bold">{filteredServicos.length}</strong> de {servicos.length}</span>
+                  <span>•</span>
+                  <span>Faturamento: <strong className="text-green-500 font-bold">R$ {totalFaturamentoFiltrado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></span>
+                  <span>•</span>
+                  <span>Distância: <strong className="text-foreground font-bold">{totalKmFiltrado.toLocaleString("pt-BR")} km</strong></span>
+                </div>
+
+                {activeFiltersCount > 0 && (
+                  <button
+                    onClick={clearAllFilters}
+                    className="flex items-center gap-1.5 text-xs font-bold text-red-500 hover:text-red-600 transition-colors cursor-pointer"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Limpar Todos os Filtros
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
       {/* Lista de Serviços */}
       {loading ? (
         <div className="text-center py-12 text-muted-foreground">Carregando serviços...</div>
-      ) : servicos.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-border rounded-2xl bg-card">
-          Nenhum serviço registrado. Clique em "Novo Serviço" para começar!
+      ) : filteredServicos.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-border rounded-2xl bg-card space-y-3">
+          <p>{activeFiltersCount > 0 ? "Nenhum serviço atende aos filtros selecionados." : "Nenhum serviço registrado. Clique em \"Novo Serviço\" para começar!"}</p>
+          {activeFiltersCount > 0 && (
+            <button
+              onClick={clearAllFilters}
+              className="px-4 py-2 bg-muted text-foreground text-xs font-bold rounded-xl hover:bg-border transition-colors cursor-pointer"
+            >
+              Limpar Filtros
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid gap-4">
           <AnimatePresence mode="popLayout">
-            {servicos.map((servico) => (
+            {filteredServicos.map((servico) => (
               <motion.div 
                 layout
                 key={servico.id} 
@@ -946,18 +1343,67 @@ export default function ServicosPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Cliente</label>
+                    <div className="space-y-2 relative">
+                      <label className="text-sm font-medium flex items-center justify-between">
+                        <span>Cliente</span>
+                        {clientSuggestions.length > 0 && showClientSuggestions && (
+                          <span className="text-[10px] text-primary font-semibold flex items-center gap-1">
+                            <UserCheck className="h-3 w-3" /> {clientSuggestions.length} cliente(s) encontrado(s)
+                          </span>
+                        )}
+                      </label>
                       <input 
                         {...register("cliente", { 
                           required: true,
                           onChange: (e) => {
                             e.target.value = toTitleCase(e.target.value);
+                            setShowClientSuggestions(true);
                           }
                         })} 
+                        onFocus={() => setShowClientSuggestions(true)}
                         className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-primary" 
                         placeholder="Nome do cliente" 
+                        autoComplete="off"
                       />
+
+                      {/* Dropdown de sugestões de clientes cadastrados */}
+                      <AnimatePresence>
+                        {showClientSuggestions && clientSuggestions.length > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -5 }}
+                            className="absolute left-0 right-0 top-full mt-1 z-[120] rounded-xl border border-border bg-card shadow-2xl overflow-hidden max-h-60 overflow-y-auto"
+                          >
+                            <div className="p-2 text-[10px] uppercase font-bold text-muted-foreground bg-muted/60 border-b border-border flex items-center justify-between">
+                              <span>Clientes no Cadastro (Clique para Autopreencher)</span>
+                              <button type="button" onClick={() => setShowClientSuggestions(false)} className="hover:text-foreground">
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                            {clientSuggestions.map((c, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => handleSelectClientSuggestion(c)}
+                                className="w-full text-left p-3 hover:bg-muted/80 transition-colors border-b border-border/40 last:border-0 flex items-center justify-between group cursor-pointer"
+                              >
+                                <div>
+                                  <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">{c.name}</p>
+                                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground mt-0.5">
+                                    {c.telefone && <span>{c.telefone}</span>}
+                                    {c.cnpjCliente && <span>• {c.cnpjCliente}</span>}
+                                    {c.cidadeCliente && <span>• {c.cidadeCliente}</span>}
+                                  </div>
+                                </div>
+                                <span className="text-[10px] font-bold bg-primary/10 text-primary px-2.5 py-1 rounded-md shrink-0 border border-primary/20">
+                                  Usar Dados
+                                </span>
+                              </button>
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">CNPJ / CPF do Cliente</label>
@@ -1757,3 +2203,12 @@ export default function ServicosPage() {
     </div>
   );
 }
+
+export default function ServicosPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-12 text-muted-foreground">Carregando serviços...</div>}>
+      <ServicosContent />
+    </Suspense>
+  );
+}
+

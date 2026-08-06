@@ -15,7 +15,7 @@ import {
   Square,
   Check,
   ListTodo,
-  ShoppingBag
+  ChevronRight
 } from "lucide-react";
 import { useCollection } from "@/hooks/useCollection";
 
@@ -40,7 +40,6 @@ const initialMockMaintenance: any[] = [];
 const initialMockShopping: any[] = [];
 const initialMockReminders: any[] = [];
 
-
 export default function Dashboard() {
   const { data: servicos, loading: loadingS } = useCollection("servicos", initialMockServices);
   const { data: abastecimentos, loading: loadingA } = useCollection("abastecimentos", initialMockFuel);
@@ -50,43 +49,69 @@ export default function Dashboard() {
 
   const loading = loadingS || loadingA || loadingM;
 
-  // Preço total das compras marcadas como concluídas
-  const totalComprasCompradas = useMemo(() => {
-    return compras
-      .filter(c => c.comprado)
-      .reduce((acc, curr) => acc + (Number(curr.preco) || 0), 0);
-  }, [compras]);
+  // Data atual para cálculo do Mês Atual
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const monthNameRaw = now.toLocaleDateString("pt-BR", { month: "long" });
+  const currentMonthName = monthNameRaw.charAt(0).toUpperCase() + monthNameRaw.slice(1);
 
-  // Faturamento = Serviços (Bruto)
-  const faturamentoTotal = useMemo(() => {
-    return servicos.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
-  }, [servicos]);
+  const isInCurrentMonth = (dateStr?: string) => {
+    if (!dateStr) return false;
+    const parts = dateStr.split("-");
+    if (parts.length < 2) return false;
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    return y === currentYear && m === currentMonth;
+  };
 
-  // Custos = Abastecimento + Manutenção + Compras Concluídas + Pedágios + Outros Custos
-  const custosTotal = useMemo(() => {
-    const totalCombustivel = abastecimentos.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
-    const totalManut = manutencoes.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
+  // Filtragem dos registros do MÊS ATUAL
+  const servicosMesAtual = useMemo(() => {
+    return servicos.filter(s => isInCurrentMonth(s.data));
+  }, [servicos, currentYear, currentMonth]);
+
+  const abastecimentosMesAtual = useMemo(() => {
+    return abastecimentos.filter(a => isInCurrentMonth(a.data));
+  }, [abastecimentos, currentYear, currentMonth]);
+
+  const manutencoesMesAtual = useMemo(() => {
+    return manutencoes.filter(m => isInCurrentMonth(m.data));
+  }, [manutencoes, currentYear, currentMonth]);
+
+  const comprasMesAtual = useMemo(() => {
+    return compras.filter(c => c.comprado && isInCurrentMonth(c.compradoEm));
+  }, [compras, currentYear, currentMonth]);
+
+  // Faturamento Mês Atual
+  const faturamentoMes = useMemo(() => {
+    return servicosMesAtual.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
+  }, [servicosMesAtual]);
+
+  // Custos Mês Atual
+  const custosMes = useMemo(() => {
+    const totalCombustivel = abastecimentosMesAtual.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
+    const totalManut = manutencoesMesAtual.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
+    const totalCompras = comprasMesAtual.reduce((acc, curr) => acc + (Number(curr.preco) || 0), 0);
     
-    // Pedágio e Outros Custos dos Serviços
-    const totalPedagioServicos = servicos.reduce((acc, curr) => acc + (Number(curr.valorPedagio) || 0), 0);
-    const totalOutrosCustosServicos = servicos.reduce((acc, curr) => {
+    const totalPedagioServicos = servicosMesAtual.reduce((acc, curr) => acc + (Number(curr.valorPedagio) || 0), 0);
+    const totalOutrosCustosServicos = servicosMesAtual.reduce((acc, curr) => {
       const outros = curr.outrosCustos || [];
       const sumOutros = outros.reduce((sum: number, c: any) => sum + (Number(c.valor) || 0), 0);
       return acc + sumOutros;
     }, 0);
     
-    return totalCombustivel + totalManut + totalPedagioServicos + totalOutrosCustosServicos + totalComprasCompradas;
-  }, [abastecimentos, manutencoes, servicos, totalComprasCompradas]);
+    return totalCombustivel + totalManut + totalPedagioServicos + totalOutrosCustosServicos + totalCompras;
+  }, [abastecimentosMesAtual, manutencoesMesAtual, servicosMesAtual, comprasMesAtual]);
 
-  const lucroEstimado = faturamentoTotal - custosTotal;
+  const lucroEstimadoMes = faturamentoMes - custosMes;
 
-  const totalKmRodados = useMemo(() => {
-    return servicos.reduce((acc, curr) => acc + (Number(curr.kmPercorrido) || 0), 0);
-  }, [servicos]);
+  const totalKmRodadosMes = useMemo(() => {
+    return servicosMesAtual.reduce((acc, curr) => acc + (Number(curr.kmPercorrido) || 0), 0);
+  }, [servicosMesAtual]);
 
-  const totalLitrosCombustivel = useMemo(() => {
-    return abastecimentos.reduce((acc, curr) => acc + (Number(curr.litros) || 0), 0);
-  }, [abastecimentos]);
+  const totalLitrosCombustivelMes = useMemo(() => {
+    return abastecimentosMesAtual.reduce((acc, curr) => acc + (Number(curr.litros) || 0), 0);
+  }, [abastecimentosMesAtual]);
 
   // Filtros rápidos de pendências para o widget do Dashboard
   const lembretesPendentes = useMemo(() => {
@@ -134,7 +159,7 @@ export default function Dashboard() {
             animate="show"
             className="grid grid-cols-1 md:grid-cols-2 gap-6"
           >
-            {/* Card 1: Resumo Financeiro */}
+            {/* Card 1: Resumo Financeiro (Mês Atual) */}
             <Link href="/financeiro" className="block">
               <motion.div
                 variants={itemVariants}
@@ -144,7 +169,14 @@ export default function Dashboard() {
               >
                 <div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Resumo Financeiro (Mês)</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Resumo Financeiro ({currentMonthName})
+                      </span>
+                      <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                        Mês Atual
+                      </span>
+                    </div>
                     <div className="rounded-xl p-2 bg-primary/10 text-primary">
                       <DollarSign className="h-5 w-5" />
                     </div>
@@ -152,7 +184,7 @@ export default function Dashboard() {
                   <div className="mt-4">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Faturamento Bruto</span>
                     <p className="text-3xl sm:text-4xl font-extrabold tracking-tight mt-1 text-foreground">
-                      R$ {faturamentoTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      R$ {faturamentoMes.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                   </div>
                 </div>
@@ -160,10 +192,10 @@ export default function Dashboard() {
                 <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-border/80">
                   <div className="space-y-1">
                     <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider flex items-center gap-1">
-                      <TrendingUp className={`h-3 w-3 ${lucroEstimado >= 0 ? "text-green-500" : "text-red-500"}`} /> Lucro Estimado
+                      <TrendingUp className={`h-3 w-3 ${lucroEstimadoMes >= 0 ? "text-green-500" : "text-red-500"}`} /> Lucro Estimado
                     </span>
-                    <p className={`text-base sm:text-lg font-bold ${lucroEstimado >= 0 ? "text-green-500" : "text-red-500"}`}>
-                      R$ {lucroEstimado.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    <p className={`text-base sm:text-lg font-bold ${lucroEstimadoMes >= 0 ? "text-green-500" : "text-red-500"}`}>
+                      R$ {lucroEstimadoMes.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     </p>
                   </div>
                   <div className="space-y-1">
@@ -171,7 +203,7 @@ export default function Dashboard() {
                       <TrendingDown className="h-3 w-3 text-red-500" /> Custos
                     </span>
                     <p className="text-base sm:text-lg font-bold text-foreground">
-                      R$ {custosTotal.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      R$ {custosMes.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     </p>
                   </div>
                 </div>
@@ -185,7 +217,9 @@ export default function Dashboard() {
             >
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Indicadores Operacionais (Mês)</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Indicadores Operacionais ({currentMonthName})
+                  </span>
                   <div className="rounded-xl p-2 bg-blue-500/10 text-blue-500">
                     <Truck className="h-5 w-5" />
                   </div>
@@ -196,13 +230,13 @@ export default function Dashboard() {
               </div>
 
               <div className="grid grid-cols-2 gap-4 mt-4">
-                <Link href="/manutencoes" className="block">
+                <Link href="/servicos" className="block">
                   <div className="bg-muted/40 p-4 rounded-xl border border-border/60 hover:bg-muted hover:border-blue-500/20 active:scale-[0.98] transition-all cursor-pointer">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1">
-                      <MapPin className="h-3 w-3 text-blue-500" /> KM Rodados
+                      <MapPin className="h-3 w-3 text-blue-500" /> KM Rodados (Mês)
                     </span>
                     <p className="text-lg sm:text-xl font-extrabold text-foreground mt-1">
-                      {totalKmRodados.toLocaleString("pt-BR")} km
+                      {totalKmRodadosMes.toLocaleString("pt-BR")} km
                     </p>
                   </div>
                 </Link>
@@ -210,10 +244,10 @@ export default function Dashboard() {
                 <Link href="/abastecimentos" className="block">
                   <div className="bg-muted/40 p-4 rounded-xl border border-border/60 hover:bg-muted hover:border-amber-500/20 active:scale-[0.98] transition-all cursor-pointer">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1">
-                      <Fuel className="h-3 w-3 text-amber-500" /> Combustível
+                      <Fuel className="h-3 w-3 text-amber-500" /> Combustível (Mês)
                     </span>
                     <p className="text-lg sm:text-xl font-extrabold text-foreground mt-1">
-                      {totalLitrosCombustivel.toLocaleString("pt-BR")} L
+                      {totalLitrosCombustivelMes.toLocaleString("pt-BR")} L
                     </p>
                   </div>
                 </Link>
@@ -348,22 +382,29 @@ export default function Dashboard() {
                 {servicos.length === 0 ? (
                   <div className="text-center py-8 text-xs text-muted-foreground">Nenhum serviço recente.</div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     {servicos.slice(0, 3).map((servico) => (
-                      <div key={servico.id} className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0">
+                      <Link 
+                        key={servico.id} 
+                        href={`/servicos?id=${servico.id}`}
+                        className="flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 border border-transparent hover:border-border transition-all cursor-pointer group"
+                      >
                         <div className="min-w-0 flex-1 mr-2">
-                          <p className="font-medium text-sm truncate">
+                          <p className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
                             {servico.cliente}
                           </p>
                           <p className="text-xs text-muted-foreground truncate">
                             {servico.origem} → {servico.destino}
                           </p>
                         </div>
-                        <div className="text-right shrink-0">
-                          <p className="font-semibold text-sm text-green-500">R$ {Number(servico.valor).toLocaleString("pt-BR")}</p>
-                          <p className="text-[10px] text-muted-foreground">{servico.data}</p>
+                        <div className="text-right shrink-0 flex items-center gap-1.5">
+                          <div>
+                            <p className="font-semibold text-sm text-green-500">R$ {Number(servico.valor).toLocaleString("pt-BR")}</p>
+                            <p className="text-[10px] text-muted-foreground">{servico.data}</p>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 )}
@@ -388,29 +429,36 @@ export default function Dashboard() {
                   </Link>
                 </div>
 
-                {/* Total do Mês */}
+                {/* Total do Mês Atual */}
                 <div className="mb-4 rounded-xl bg-amber-500/10 p-3 border border-amber-500/20">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Total do Mês</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Custos Combustível ({currentMonthName})</p>
                   <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                    R$ {custosTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    R$ {custosMes.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
 
                 {abastecimentos.length === 0 ? (
                   <div className="text-center py-8 text-xs text-muted-foreground">Nenhum abastecimento recente.</div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     {abastecimentos.slice(0, 3).map((item) => (
-                      <div key={item.id} className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0">
+                      <Link 
+                        key={item.id} 
+                        href={`/abastecimentos?id=${item.id}`}
+                        className="flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 border border-transparent hover:border-border transition-all cursor-pointer group"
+                      >
                         <div className="min-w-0 flex-1 mr-2">
-                          <p className="font-medium text-sm truncate">{item.veiculo}</p>
+                          <p className="font-semibold text-sm truncate group-hover:text-amber-500 transition-colors">{item.veiculo}</p>
                           <p className="text-xs text-muted-foreground">{item.litros} Litros</p>
                         </div>
-                        <div className="text-right shrink-0">
-                          <p className="font-semibold text-sm text-foreground">R$ {Number(item.valor).toLocaleString("pt-BR")}</p>
-                          <p className="text-[10px] text-muted-foreground">{item.data}</p>
+                        <div className="text-right shrink-0 flex items-center gap-1.5">
+                          <div>
+                            <p className="font-semibold text-sm text-foreground">R$ {Number(item.valor).toLocaleString("pt-BR")}</p>
+                            <p className="text-[10px] text-muted-foreground">{item.data}</p>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 )}
@@ -438,14 +486,15 @@ export default function Dashboard() {
                 {manutencoes.length === 0 ? (
                   <div className="text-center py-8 text-xs text-muted-foreground">Nenhuma manutenção recente.</div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {manutencoes.slice(0, 2).map((item, idx) => (
-                      <div 
+                      <Link
                         key={item.id} 
-                        className={`flex items-start gap-4 rounded-xl p-4 border ${
+                        href={`/manutencoes?id=${item.id}`}
+                        className={`flex items-start gap-4 rounded-xl p-4 border transition-all cursor-pointer group ${
                           idx === 0 
-                            ? "bg-orange-500/10 border-orange-500/20" 
-                            : "bg-muted border-border"
+                            ? "bg-orange-500/10 border-orange-500/20 hover:bg-orange-500/20" 
+                            : "bg-muted border-border hover:bg-muted/80"
                         }`}
                       >
                         <div className={`rounded-full p-2 text-white shrink-0 ${idx === 0 ? "bg-orange-500" : "bg-muted-foreground/40"}`}>
@@ -457,7 +506,8 @@ export default function Dashboard() {
                           </p>
                           <p className="text-xs text-muted-foreground mt-1 truncate">KM: {item.km?.toLocaleString("pt-BR")} | {item.data}</p>
                         </div>
-                      </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity self-center" />
+                      </Link>
                     ))}
                   </div>
                 )}
@@ -469,3 +519,4 @@ export default function Dashboard() {
     </div>
   );
 }
+
