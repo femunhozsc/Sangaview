@@ -18,6 +18,13 @@ export const metadata: Metadata = {
   title: "Sanga View",
   description: "Sistema de gestão para serviços de guincho.",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/sanga-pwa-icon.png", type: "image/png" },
+    ],
+    shortcut: "/sanga-pwa-icon.png",
+    apple: "/sanga-pwa-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -32,6 +39,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/sanga-pwa-icon.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/sanga-pwa-icon.png" />
+      </head>
       <body className={inter.className}>
         <ThemeProvider
           attribute="class"
