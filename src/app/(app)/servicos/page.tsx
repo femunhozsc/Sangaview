@@ -28,7 +28,8 @@ import {
   SlidersHorizontal,
   Search,
   UserCheck,
-  Check
+  Check,
+  FileText
 } from "lucide-react";
 import { useCollection } from "@/hooks/useCollection";
 
@@ -1263,9 +1264,19 @@ function ServicosContent() {
                   </div>
                 </div>
                 <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 shrink-0">
-                  <p className="text-xl font-bold text-green-500">
-                    R$ {Number(servico.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xl font-bold text-green-500">
+                      R$ {Number(servico.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    {servico.comNota && (
+                      <span 
+                        className="inline-flex items-center justify-center p-1 rounded-md bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20 transition-colors" 
+                        title="Com Nota Fiscal Emitida"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-1">
                     <button 
                       onClick={(e) => handleEdit(servico, e)}

@@ -109,9 +109,15 @@ export default function Dashboard() {
     return servicosMesAtual.reduce((acc, curr) => acc + (Number(curr.kmPercorrido) || 0), 0);
   }, [servicosMesAtual]);
 
-  const totalLitrosCombustivelMes = useMemo(() => {
-    return abastecimentosMesAtual.reduce((acc, curr) => acc + (Number(curr.litros) || 0), 0);
+  const gastoCombustivelMes = useMemo(() => {
+    return abastecimentosMesAtual.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
   }, [abastecimentosMesAtual]);
+
+  const totalLitrosCombustivelMes = useMemo(() => {
+    const litrosAbastecimentos = abastecimentosMesAtual.reduce((acc, curr) => acc + (Number(curr.litros) || 0), 0);
+    const litrosServicos = servicosMesAtual.reduce((acc, curr) => acc + (Number(curr.consumoLitros) || 0), 0);
+    return litrosAbastecimentos + litrosServicos;
+  }, [abastecimentosMesAtual, servicosMesAtual]);
 
   // Filtros rápidos de pendências para o widget do Dashboard
   const lembretesPendentes = useMemo(() => {
@@ -433,7 +439,7 @@ export default function Dashboard() {
                 <div className="mb-4 rounded-xl bg-amber-500/10 p-3 border border-amber-500/20">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Custos Combustível ({currentMonthName})</p>
                   <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                    R$ {custosMes.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    R$ {gastoCombustivelMes.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
 
