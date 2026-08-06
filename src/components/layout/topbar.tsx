@@ -68,8 +68,8 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         </div>
       </div>
 
-      {/* Sub-bar de botões de atalho (visível APENAS no computador / desktop - centralizado) */}
-      <nav className="hidden md:flex items-center justify-center gap-1 border-t border-white/10 px-4 py-2 overflow-x-auto scrollbar-none bg-graphite-dark/60 backdrop-blur-sm">
+      {/* Sub-bar de botões de atalho (visível APENAS no computador / desktop - largura inteira da tela) */}
+      <nav className="hidden md:flex w-full items-center justify-between gap-1.5 border-t border-white/10 px-3 py-2 bg-graphite-dark/60 backdrop-blur-sm">
         {desktopMenuItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
@@ -77,10 +77,10 @@ export function Topbar({ onMenuClick }: TopbarProps) {
               key={item.name}
               href={item.href}
               className={cn(
-                "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all duration-200",
+                "flex-1 flex items-center justify-center gap-2 rounded-xl px-2 py-2 text-xs font-bold whitespace-nowrap transition-all duration-200 text-center",
                 isActive
-                  ? "bg-white/20 text-white shadow-sm ring-1 ring-white/30"
-                  : "text-white/70 hover:bg-white/10 hover:text-white"
+                  ? "bg-white/25 text-white shadow-sm ring-1 ring-white/40"
+                  : "text-white/70 hover:bg-white/15 hover:text-white"
               )}
             >
               <item.icon className={cn("h-4 w-4 shrink-0", isActive ? "text-white" : "text-white/70")} />
